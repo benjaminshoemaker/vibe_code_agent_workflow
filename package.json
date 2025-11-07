@@ -1,0 +1,59 @@
+{
+  "name": "vibe_code_agent_workflow",
+  "version": "1.0.0",
+  "description": "Single-origin Next.js + Fastify stack for the agent workflow MVP.",
+  "private": true,
+  "main": "dist/server.js",
+  "scripts": {
+    "dev": "tsx src/server.ts",
+    "build": "next build && tsc -p tsconfig.server.json",
+    "start": "NODE_ENV=production node dist/server.js",
+    "test": "pnpm run test:unit && pnpm run test:e2e",
+    "test:unit": "vitest run",
+    "test:e2e": "pnpm run build && playwright test",
+    "typecheck": "tsc --noEmit",
+    "lint": "next lint",
+    "db:prepare": "tsx scripts/ensure-local-db.ts",
+    "db:generate": "pnpm db:prepare && drizzle-kit generate",
+    "db:migrate": "pnpm db:prepare && drizzle-kit migrate",
+    "db:seed": "tsx src/db/seed.ts"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "dependencies": {
+    "@fastify/cookie": "^11.0.2",
+    "@libsql/client": "^0.15.15",
+    "dotenv": "^17.2.3",
+    "drizzle-orm": "^0.44.7",
+    "fastify": "^5.6.1",
+    "fastify-plugin": "^5.1.0",
+    "next": "14",
+    "openai": "^6.8.1",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "zod": "^4.1.12"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.56.1",
+    "@types/node": "^20.19.24",
+    "@types/react": "^19.2.2",
+    "@types/react-dom": "^19.2.2",
+    "autoprefixer": "^10.4.21",
+    "drizzle-kit": "^0.31.6",
+    "eslint": "^8.57.1",
+    "eslint-config-next": "^14.2.33",
+    "eslint-config-prettier": "^10.1.8",
+    "postcss": "^8.5.6",
+    "prettier": "^3.6.2",
+    "supertest": "^7.1.4",
+    "tailwindcss": "^3.4.14",
+    "tsx": "^4.20.6",
+    "typescript": "5.6.3",
+    "vite": "^7.2.1",
+    "vitest": "^4.0.7"
+  }
+}
