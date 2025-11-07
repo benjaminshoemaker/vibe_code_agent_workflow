@@ -308,9 +308,9 @@ Rules
 Positive/negative per rule; approve advances stage.
 
 **TODO**
-- [ ] Validators
-- [ ] Approve route wiring
-- [ ] Tests
+- [x] Validators
+- [x] Approve route wiring
+- [x] Tests
 
 ---
 
