@@ -1,19 +1,22 @@
 import fp from "fastify-plugin";
 import type { FastifyPluginCallback } from "fastify";
 
-const CSP_DIRECTIVES = [
-  "default-src 'self'",
-  "script-src 'self'",
-  "connect-src 'self'",
-  "img-src 'self' data: blob:",
-  "style-src 'self' 'unsafe-inline'",
-  "font-src 'self'",
-  "frame-src 'self'",
-  "frame-ancestors 'none'",
-  "base-uri 'self'",
-  "form-action 'self'",
-  "object-src 'none'"
-].join("; ");
+function buildCsp(dev: boolean) {
+  const scriptSrc = dev ? "script-src 'self' 'unsafe-eval' 'unsafe-inline'" : "script-src 'self'";
+  return [
+    "default-src 'self'",
+    scriptSrc,
+    "connect-src 'self'",
+    "img-src 'self' data: blob:",
+    "style-src 'self' 'unsafe-inline'",
+    "font-src 'self'",
+    "frame-src 'self'",
+    "frame-ancestors 'none'",
+    "base-uri 'self'",
+    "form-action 'self'",
+    "object-src 'none'"
+  ].join("; ");
+}
 
 const ADDITIONAL_HEADERS: Record<string, string> = {
   "X-Content-Type-Options": "nosniff",
@@ -31,7 +34,8 @@ const securityHeadersPlugin: FastifyPluginCallback = (app, _opts, done) => {
       reply.raw.setHeader(header, value);
     };
 
-    set("Content-Security-Policy", CSP_DIRECTIVES);
+    const dev = process.env.NODE_ENV !== "production";
+    set("Content-Security-Policy", buildCsp(dev));
     set("Strict-Transport-Security", "max-age=63072000; includeSubDomains; preload");
 
     for (const [header, value] of Object.entries(ADDITIONAL_HEADERS)) {

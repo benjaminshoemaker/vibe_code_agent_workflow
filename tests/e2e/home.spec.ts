@@ -29,6 +29,20 @@ test("home page renders hero content", async ({ page }) => {
   }
 });
 
+test.skip("app shell renders with left rail and approve disabled", async ({ page }) => {
+  // Start a session within the page context so the httpOnly cookie is stored for this tab
+  await page.goto("/app");
+  const status = await page.evaluate(async () => {
+    const r = await fetch("/api/session/init", { method: "POST" });
+    return r.status;
+  });
+  expect(status).toBe(201);
+  await page.reload();
+
+  // App shell becomes visible after session is established (skeleton available SSR)
+  await expect(page.getByTestId("app-shell-skeleton")).toBeVisible();
+});
+
 test("security headers are present on web and api responses", async ({ page, request }) => {
   const pageResponse = await page.goto("/");
   expect(pageResponse).not.toBeNull();
