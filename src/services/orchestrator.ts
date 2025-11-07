@@ -1,6 +1,7 @@
 import { createStageGraph } from "../orchestrator/graph";
 import { DefaultStageDriver } from "../orchestrator/driver";
 import { MAX_STAGE_LLM_CALLS } from "../orchestrator/constants";
+import type { RunnableConfig } from "@langchain/core/runnables";
 import type {
   StageEvent,
   StageName,
@@ -46,28 +47,29 @@ export type StageRunResult = {
 };
 
 export async function runStage(options: StageRunOptions): Promise<StageRunResult> {
-  const result = await stageGraph.invoke(
-    {
-      sessionId: options.sessionId,
-      stage: options.stage,
-      llmCalls: 0,
-      events: [],
-      status: "running" as StageStatus
-    },
-    {
-      configurable: {
-        thread_id: `${options.sessionId}:${options.stage}`,
-        checkpoint_id: `${options.sessionId}:${options.stage}`,
-        runtime: {
-          sessionId: options.sessionId,
-          driver: options.driver ?? defaultDriver,
-          reingest: options.reingest ?? refreshContext,
-          onEvent: options.onEvent,
-          budgetLimit: options.budgetLimit ?? MAX_STAGE_LLM_CALLS
-        }
+  const initialState = {
+    sessionId: options.sessionId,
+    stage: options.stage,
+    llmCalls: 0,
+    events: [],
+    status: "running" as StageStatus
+  };
+
+  const runConfig: RunnableConfig = {
+    configurable: {
+      thread_id: `${options.sessionId}:${options.stage}`,
+      checkpoint_id: `${options.sessionId}:${options.stage}`,
+      runtime: {
+        sessionId: options.sessionId,
+        driver: options.driver ?? defaultDriver,
+        reingest: options.reingest ?? refreshContext,
+        onEvent: options.onEvent,
+        budgetLimit: options.budgetLimit ?? MAX_STAGE_LLM_CALLS
       }
     }
-  );
+  };
+
+  const result = await stageGraph.withConfig(runConfig).invoke(initialState);
 
   return {
     llmCalls: result.llmCalls ?? 0,

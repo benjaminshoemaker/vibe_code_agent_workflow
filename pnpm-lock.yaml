@@ -8,6 +8,9 @@ dependencies:
   '@fastify/cookie':
     specifier: ^11.0.2
     version: 11.0.2
+  '@langchain/core':
+    specifier: ^1.0.3
+    version: 1.0.3(openai@6.8.1)
   '@langchain/langgraph':
     specifier: ^1.0.1
     version: 1.0.1(@langchain/core@1.0.3)(react-dom@18.2.0)(react@18.2.0)(zod@4.1.12)

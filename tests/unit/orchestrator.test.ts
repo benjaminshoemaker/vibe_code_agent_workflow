@@ -28,7 +28,9 @@ describe("LangGraph stage orchestrator", () => {
       sessionId: "sess-1",
       stage: "intake",
       onEvent: (event) => events.push(event.event),
-      reingest: async (payload) => reingestPhases.push(payload.phase)
+      reingest: async (payload) => {
+        reingestPhases.push(payload.phase);
+      }
     });
 
     expect(result.status).toBe("ready");
