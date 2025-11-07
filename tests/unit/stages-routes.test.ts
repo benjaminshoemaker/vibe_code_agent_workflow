@@ -96,6 +96,48 @@ describe("stage routes", () => {
     expect(Boolean(dbSession?.approvedDesign)).toBe(true);
     expect(dbSession?.currentStage).toBe("prompt_plan");
   });
+
+  it("approves one_pager stage and advances to spec", async () => {
+    const session = await createSession();
+    await setSessionStage(session.sessionId, "one_pager");
+    await setDocContent(
+      session.sessionId,
+      "idea_one_pager.md",
+      [
+        "## Problem",
+        "## Audience",
+        "## Platform",
+        "## Core Flow",
+        "## MVP Features"
+      ].join("\n\n")
+    );
+
+    const response = await postStage(session.cookie, "one_pager");
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual({ ok: true });
+
+    const dbSession = await db.query.sessions.findFirst({
+      where: eq(sessions.sessionId, session.sessionId)
+    });
+    expect(Boolean(dbSession?.approvedOnePager)).toBe(true);
+    expect(dbSession?.currentStage).toBe("spec");
+  });
+
+  it("approves agents stage and advances to export", async () => {
+    const session = await createSession();
+    await setSessionStage(session.sessionId, "agents");
+    await setDocContent(session.sessionId, "AGENTS.md", "## Agent responsibility\n- Keep TODOs in sync.");
+
+    const response = await postStage(session.cookie, "agents");
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual({ ok: true });
+
+    const dbSession = await db.query.sessions.findFirst({
+      where: eq(sessions.sessionId, session.sessionId)
+    });
+    expect(Boolean(dbSession?.approvedAgents)).toBe(true);
+    expect(dbSession?.currentStage).toBe("export");
+  });
 });
 
 async function createSession() {

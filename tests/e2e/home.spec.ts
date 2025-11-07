@@ -3,9 +3,30 @@ import { test, expect } from "@playwright/test";
 test("home page renders hero content", async ({ page }) => {
   await page.goto("/");
   await expect(page.getByTestId("hero-heading")).toBeVisible();
-  await expect(page.getByText(/Agent-ready planner/i)).toBeVisible();
+  await expect(page.getByText("Turn your idea into agent-ready docs")).toBeVisible();
+  await expect(
+    page.getByText(
+      "A structured, multi-stage workflow that transforms your product concept into comprehensive documentation ready for AI agents and development teams."
+    )
+  ).toBeVisible();
   await expect(page.getByRole("link", { name: "Start new session" })).toBeVisible();
   await expect(page.getByRole("link", { name: "Resume" })).toBeVisible();
+  // Stage chips present
+  for (const stage of [
+    "intake",
+    "one_pager",
+    "spec",
+    "design",
+    "prompt_plan",
+    "agents",
+    "export"
+  ]) {
+    await expect(page.getByText(stage, { exact: true })).toBeVisible();
+  }
+  // Snippet cards present
+  for (const filename of ["idea_one_pager.md", "spec.md", "prompt_plan.md", "AGENTS.md"]) {
+    await expect(page.getByText(filename, { exact: true }).first()).toBeVisible();
+  }
 });
 
 test("security headers are present on web and api responses", async ({ page, request }) => {

@@ -45,6 +45,29 @@ describe("designs routes", () => {
     expect(upload.statusCode).toBe(401);
   });
 
+  it("rejects unsupported media type and too-large zips", async () => {
+    const session = await createSession();
+    const wrongType = await app.inject({
+      method: "POST",
+      url: "/api/designs/upload",
+      headers: { cookie: session.cookie, "content-type": "application/octet-stream" },
+      payload: Buffer.from("not a zip")
+    });
+    expect(wrongType.statusCode).toBe(415);
+    expect(wrongType.json().error).toBe("UNSUPPORTED_MEDIA_TYPE");
+
+    const huge = Buffer.alloc(100 * 1024 * 1024 + 1, 0);
+    const tooLarge = await app.inject({
+      method: "POST",
+      url: "/api/designs/upload",
+      headers: { cookie: session.cookie, "content-type": "application/zip" },
+      payload: huge
+    });
+    expect(tooLarge.statusCode).toBe(413);
+    const code = tooLarge.json().error as string;
+    expect(["ZIP_TOO_LARGE", "PAYLOAD_TOO_LARGE"]).toContain(code);
+  });
+
   it("uploads a zip, replaces prior files, and lists them", async () => {
     const session = await createSession();
     const firstZip = await createZipBuffer([
