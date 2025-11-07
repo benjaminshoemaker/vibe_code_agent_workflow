@@ -60,6 +60,7 @@ Additional helpers:
 | 9 — LangGraph stage orchestrator | Back-end orchestrator graph landed; no new user-facing controls yet. |
 | 10 — Stage validators + approvals | `/api/stages/:stage/approve` now enforces per-stage validators, locks docs, and advances sessions once requirements pass. |
 | 11 — Designs upload API | `/api/designs/upload` ingests ZIPs (≤100MB/300 files), replaces the design index, and `/api/designs/index` lists normalized assets. |
+| 12 — Landing page | Public landing now includes hero CTA buttons, stage strip, doc snippets, and a security note for quick orientation. |
 
 ## Deployment flow
 
