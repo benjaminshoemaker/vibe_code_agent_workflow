@@ -335,12 +335,12 @@ Tasks
 Integration: replace test; path normalization; verify Turso BLOB storage; verify reingest called.
 
 **TODO**
-- [ ] Unzipper + limiter
-- [ ] Turso BLOB storage implementation
-- [ ] Replace policy + path normalization
-- [ ] Wire re-ingest hook after upload
-- [ ] Index route
-- [ ] Tests
+- [x] Unzipper + limiter
+- [x] Turso BLOB storage implementation
+- [x] Replace policy + path normalization
+- [x] Wire re-ingest hook after upload
+- [x] Index route
+- [x] Tests
 
 ---
 

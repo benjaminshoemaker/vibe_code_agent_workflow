@@ -32,6 +32,9 @@ dependencies:
   fastify-plugin:
     specifier: ^5.1.0
     version: 5.1.0
+  mime-types:
+    specifier: ^3.0.1
+    version: 3.0.1
   next:
     specifier: '14'
     version: 14.2.33(@playwright/test@1.56.1)(react-dom@18.2.0)(react@18.2.0)
@@ -44,6 +47,9 @@ dependencies:
   react-dom:
     specifier: ^18.2.0
     version: 18.2.0(react@18.2.0)
+  yauzl:
+    specifier: ^3.2.0
+    version: 3.2.0
   zod:
     specifier: ^4.1.12
     version: 4.1.12
@@ -52,6 +58,9 @@ devDependencies:
   '@playwright/test':
     specifier: ^1.56.1
     version: 1.56.1
+  '@types/mime-types':
+    specifier: ^3.0.1
+    version: 3.0.1
   '@types/node':
     specifier: ^20.19.24
     version: 20.19.24
@@ -61,6 +70,12 @@ devDependencies:
   '@types/react-dom':
     specifier: ^19.2.2
     version: 19.2.2(@types/react@19.2.2)
+  '@types/yauzl':
+    specifier: ^2.10.3
+    version: 2.10.3
+  '@types/yazl':
+    specifier: ^3.3.0
+    version: 3.3.0
   autoprefixer:
     specifier: ^10.4.21
     version: 10.4.21(postcss@8.5.6)
@@ -100,6 +115,9 @@ devDependencies:
   vitest:
     specifier: ^4.0.7
     version: 4.0.7(@types/node@20.19.24)(tsx@4.20.6)
+  yazl:
+    specifier: ^3.3.1
+    version: 3.3.1
 
 packages:
 
@@ -1304,6 +1322,10 @@ packages:
     resolution: {integrity: sha512-dRLjCWHYg4oaA77cxO64oO+7JwCwnIzkZPdrrC71jQmQtlhM556pwKo5bUzqvZndkVbeFLIIi+9TC40JNF5hNQ==}
     dev: true
 
+  /@types/mime-types@3.0.1:
+    resolution: {integrity: sha512-xRMsfuQbnRq1Ef+C+RKaENOxXX87Ygl38W1vDfPHRku02TgQr+Qd8iivLtAMcR0KF5/29xlnFihkTlbqFrGOVQ==}
+    dev: true
+
   /@types/node@20.19.24:
     resolution: {integrity: sha512-FE5u0ezmi6y9OZEzlJfg37mqqf6ZDSF2V/NLjUyGrR9uTZ7Sb9F7bLNZ03S4XVUNRWGA7Ck4c1kK+YnuWjl+DA==}
     dependencies:
@@ -1343,6 +1365,18 @@ packages:
     dependencies:
       '@types/node': 24.10.0
     dev: false
+
+  /@types/yauzl@2.10.3:
+    resolution: {integrity: sha512-oJoftv0LSuaDZE3Le4DbKX+KS9G36NzOeSap90UIK0yMA/NhKJhqlSGtNDORNRaIbQfzjXDrQa0ytJ6mNRGz/Q==}
+    dependencies:
+      '@types/node': 20.19.24
+    dev: true
+
+  /@types/yazl@3.3.0:
+    resolution: {integrity: sha512-mFL6lGkk2N5u5nIxpNV/K5LW3qVSbxhJrMxYGOOxZndWxMgCamr/iCsq/1t9kd8pEwhuNP91LC5qZm/qS9pOEw==}
+    dependencies:
+      '@types/node': 20.19.24
+    dev: true
 
   /@typescript-eslint/eslint-plugin@8.46.3(@typescript-eslint/parser@8.46.3)(eslint@8.57.1)(typescript@5.6.3):
     resolution: {integrity: sha512-sbaQ27XBUopBkRiuY/P9sWGOWUW4rl8fDoHIUmLpZd8uldsTyB4/Zg6bWTegPoTLnKj9Hqgn3QD6cjPNB32Odw==}
@@ -2008,6 +2042,15 @@ packages:
       electron-to-chromium: 1.5.247
       node-releases: 2.0.27
       update-browserslist-db: 1.1.4(browserslist@4.27.0)
+    dev: true
+
+  /buffer-crc32@0.2.13:
+    resolution: {integrity: sha512-VO9Ht/+p3SN7SKWqcrgEzjGbRSJYTx+Q1pTQC0wrWqHx0vpJraQ6GtHx8tvcg1rlK1byhU5gccxgOgj7B0TDkQ==}
+    dev: false
+
+  /buffer-crc32@1.0.0:
+    resolution: {integrity: sha512-Db1SbgBS/fg/392AblrMJk97KggmvYhr4pB5ZIMTWtaivCPMWLkmb7m21cJvpvgK+J3nsU2CmmixNBZx4vFj/w==}
+    engines: {node: '>=8.0.0'}
     dev: true
 
   /buffer-from@1.1.2:
@@ -3849,12 +3892,24 @@ packages:
     engines: {node: '>= 0.6'}
     dev: true
 
+  /mime-db@1.54.0:
+    resolution: {integrity: sha512-aU5EJuIN2WDemCcAp2vFBfp/m4EAhWJnUNSSw0ixs7/kXbd6Pg64EmwJkNdFhB8aWt1sH2CTXrLxo/iAGV3oPQ==}
+    engines: {node: '>= 0.6'}
+    dev: false
+
   /mime-types@2.1.35:
     resolution: {integrity: sha512-ZDY+bPm5zTTF+YpCrAU9nK0UgICYPT0QtT1NZWFv4s++TNkcgVaT0g6+4R2uI4MjQjzysHB1zxuWL50hzaeXiw==}
     engines: {node: '>= 0.6'}
     dependencies:
       mime-db: 1.52.0
     dev: true
+
+  /mime-types@3.0.1:
+    resolution: {integrity: sha512-xRc4oEhT6eaBpU1XF7AjpOFD+xQmXNB5OVKwp4tqCuBpHLS/ZbBDrc07mYTDqVMg6PfxUjjNp85O6Cd2Z/5HWA==}
+    engines: {node: '>= 0.6'}
+    dependencies:
+      mime-db: 1.54.0
+    dev: false
 
   /mime@2.6.0:
     resolution: {integrity: sha512-USPkMeET31rOMiarsBNIHZKLGgvKc/LrjofAnBlOttf5ajRvqiRA8QsenbcooctK6d6Ts6aqZXBA+XbkKthiQg==}
@@ -4189,6 +4244,10 @@ packages:
   /pathe@2.0.3:
     resolution: {integrity: sha512-WUjGcAqP1gQacoQe+OBJsFA7Ld4DyXuUIjZ5cc75cLHvJ7dtNsTugphxIADwspS+AraAUePCKrSVtPLFj/F88w==}
     dev: true
+
+  /pend@1.2.0:
+    resolution: {integrity: sha512-F3asv42UuXchdzt+xXqfW1OGlVBe+mxa2mqI0pg5yAHZPvFmY3Y6drSf/GQ1A86WgWEN9Kzh/WrgKa6iGcHXLg==}
+    dev: false
 
   /picocolors@1.1.1:
     resolution: {integrity: sha512-xceH2snhtb5M9liqDsmEw56le376mTZkEX/jEb/RxNFyegNul7eNslCXP9FDj/Lcu0X8KEyMceP2ntpaHrDEVA==}
@@ -5443,6 +5502,20 @@ packages:
     resolution: {integrity: sha512-lcYcMxX2PO9XMGvAJkJ3OsNMw+/7FKes7/hgerGUYWIoWu5j/+YQqcZr5JnPZWzOsEBgMbSbiSTn/dv/69Mkpw==}
     engines: {node: '>= 14.6'}
     hasBin: true
+    dev: true
+
+  /yauzl@3.2.0:
+    resolution: {integrity: sha512-Ow9nuGZE+qp1u4JIPvg+uCiUr7xGQWdff7JQSk5VGYTAZMDe2q8lxJ10ygv10qmSj031Ty/6FNJpLO4o1Sgc+w==}
+    engines: {node: '>=12'}
+    dependencies:
+      buffer-crc32: 0.2.13
+      pend: 1.2.0
+    dev: false
+
+  /yazl@3.3.1:
+    resolution: {integrity: sha512-BbETDVWG+VcMUle37k5Fqp//7SDOK2/1+T7X8TD96M3D9G8jK5VLUdQVdVjGi8im7FGkazX7kk5hkU8X4L5Bng==}
+    dependencies:
+      buffer-crc32: 1.0.0
     dev: true
 
   /yocto-queue@0.1.0:

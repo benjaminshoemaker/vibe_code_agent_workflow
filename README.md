@@ -59,6 +59,7 @@ Additional helpers:
 | 8 — `/api/chat` SSE | `/api/chat` streams Server-Sent Events; test with `curl -N -b cookies.txt http://localhost:3000/api/chat`. |
 | 9 — LangGraph stage orchestrator | Back-end orchestrator graph landed; no new user-facing controls yet. |
 | 10 — Stage validators + approvals | `/api/stages/:stage/approve` now enforces per-stage validators, locks docs, and advances sessions once requirements pass. |
+| 11 — Designs upload API | `/api/designs/upload` ingests ZIPs (≤100MB/300 files), replaces the design index, and `/api/designs/index` lists normalized assets. |
 
 ## Deployment flow
 
