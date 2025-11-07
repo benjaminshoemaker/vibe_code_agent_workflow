@@ -278,10 +278,10 @@ Tasks
 Unit: transitions; budget enforcement triggers `stage.needs_more` after 4 total calls.
 
 **TODO**
-- [ ] Graph + nodes
-- [ ] Budget counter (total calls)
-- [ ] Re-ingest hooks (start + pre‑validate)
-- [ ] Tests
+- [x] Graph + nodes
+- [x] Budget counter (total calls)
+- [x] Re-ingest hooks (start + pre‑validate)
+- [x] Tests
 
 ---
 

@@ -25,6 +25,7 @@ Strip macOS metadata directories (`__MACOSX/`) and `._*` resource-fork files fro
 - When creating new tasks or subtasks, add them directly under the appropriate section anchor in `prompt_plan.md`.  
 - Always commit changes to `prompt_plan.md` alongside the code and tests that fulfill them.  
 - Do not consider work “done” until the matching checklist item is checked and all related tests are green.
+- When a stage (plan step) is complete with green tests, update the README “Release notes” section with any user-facing impact (or explicitly state “No user-facing changes” if applicable).
 
 ## Guardrails for agents
 - Make the smallest change that passes tests and improves the code.
