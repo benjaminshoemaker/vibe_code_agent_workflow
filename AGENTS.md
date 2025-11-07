@@ -26,6 +26,8 @@ Strip macOS metadata directories (`__MACOSX/`) and `._*` resource-fork files fro
 - Always commit changes to `prompt_plan.md` alongside the code and tests that fulfill them.  
 - Do not consider work “done” until the matching checklist item is checked and all related tests are green.
 - When a stage (plan step) is complete with green tests, update the README “Release notes” section with any user-facing impact (or explicitly state “No user-facing changes” if applicable).
+- Even when automated coverage exists, always suggest a feasible manual test path so the human can exercise the feature end-to-end.
+- After a plan step is finished, document its completion state with a short checklist (one bullet per item) covering: step name/number, test command/results, `prompt_plan.md` status, manual checks performed, and whether release notes + commit summary were produced.
 
 ## Guardrails for agents
 - Make the smallest change that passes tests and improves the code.

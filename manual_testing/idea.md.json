@@ -1,0 +1,3 @@
+{
+  "content": "# Idea\n\n## Problem\nOperators need a turn-key staged workflow.\n\n## Audience\nTechnical PMs and senior engineers who shepherd agent work.\n\n## Platform\nSingle-origin Next.js + Fastify app.\n\n## Core Flow\nEdit docs, request approval per stage, export bundle at the end.\n\n## MVP Features\n- Stage-gated approvals\n- Doc editing\n- Design ZIP ingestion"
+}

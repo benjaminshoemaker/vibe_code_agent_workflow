@@ -1,0 +1,3 @@
+{
+  "content": "## Problem\nOperators lose time wiring each agent stage manually.\n\n## Audience\nSenior engineers and PMs running iterative idea reviews.\n\n## Platform\nNext.js + Fastify single-origin web app.\n\n## Core Flow\nAnswer chat prompts, edit docs, and approve each stage once validators pass.\n\n## MVP Features\n- Intake doc capture\n- One-pager synthesis\n- Spec drafting\n- Prompt plan instructions"
+}

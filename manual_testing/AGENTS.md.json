@@ -1,0 +1,3 @@
+{
+  "content": "# AGENTS\n\n## Overview\nSummaries for each doc plus stage guardrails.\n\n## Agent responsibility\n- Keep TODOs in sync.\n- Suggest manual tests even when automation exists.\n- Never use line-continuation backslashes when sharing commands with the human."
+}
