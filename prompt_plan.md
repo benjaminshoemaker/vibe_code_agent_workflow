@@ -364,11 +364,11 @@ Tasks
 E2E: renders; all 4 snippets visible; CTAs functional.
 
 **TODO**
-- [ ] Hero + CTAs
-- [ ] Stage strip
-- [ ] Sample snippets (all 4 docs)
-- [ ] Security note
-- [ ] E2E
+- [x] Hero + CTAs
+- [x] Stage strip
+- [x] Sample snippets (all 4 docs)
+- [x] Security note
+- [x] E2E
 
 ---
 
