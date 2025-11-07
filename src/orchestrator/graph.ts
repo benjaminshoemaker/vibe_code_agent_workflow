@@ -39,6 +39,8 @@ export const STAGES: StageName[] = [
   "export"
 ] as const;
 
+const STAGE_GRAPH_NODES: Array<typeof START | StageName> = [START, ...STAGES];
+
 type NodeConfig = RunnableConfig & {
   configurable?: {
     runtime?: StageRuntimeOptions;
@@ -136,7 +138,7 @@ function createStageNode(stage: StageName) {
 }
 
 export function createStageGraph() {
-  const graph = new StateGraph(StageState);
+  const graph = new StateGraph(StageState, { nodes: STAGE_GRAPH_NODES });
 
   graph.addConditionalEdges(START, (state: StageGraphState) => state.stage);
 
