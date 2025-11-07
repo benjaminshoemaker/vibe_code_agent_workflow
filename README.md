@@ -45,6 +45,20 @@ Additional helpers:
 - `tailwind.config.ts`, `postcss.config.js` — Tailwind + PostCSS wiring for the UI.
 - `vitest.config.ts`, `playwright.config.ts` — Base testing configuration.
 
+## Release notes
+
+| Step | User-facing notes |
+| --- | --- |
+| 1 — Project scaffold & tooling | Base repo is live; run `pnpm dev` to start the combined Fastify + Next.js dev server on `http://localhost:3000`. |
+| 2 — Single-origin Fastify + Next | `/api/health` exposes a JSON `{ok:true}` heartbeat for uptime monitoring. |
+| 3 — Security headers & CSP | All routes now emit strict CSP and hardened headers; no action required. |
+| 4 — Drizzle/Turso integration | Local development automatically provisions `.tmp/dev.db`; Turso URLs can still be supplied via env vars. |
+| 5 — Session cookie + `/api/session` | Use `POST /api/session/init` and `GET /api/session` to manage session cookies (host-only, rolling TTL). |
+| 6 — Docs API + re-ingest hook | `/api/docs/:name` now supports GET/PUT so users can edit idea/spec files until they’re approved. |
+| 7 — OpenAI wrapper | Internal Responses API helper added (no new endpoints). |
+| 8 — `/api/chat` SSE | `/api/chat` streams Server-Sent Events; test with `curl -N -b cookies.txt http://localhost:3000/api/chat`. |
+| 9 — LangGraph stage orchestrator | Back-end orchestrator graph landed; no new user-facing controls yet. |
+
 ## Deployment flow
 
 1. `pnpm build` — generates `.next` and compiles `src/server.ts` to `dist/server.js`.
