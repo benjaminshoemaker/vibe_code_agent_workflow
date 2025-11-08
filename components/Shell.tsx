@@ -1,19 +1,20 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import ChatPanel from "./ChatPanel";
 import MarkdownEditor from "./MarkdownEditor";
 import MarkdownPreview from "./MarkdownPreview";
 
+type StageSlug = "intake" | "one_pager" | "spec" | "design" | "prompt_plan" | "agents" | "export";
+
 type SessionResponse = {
-  current_stage: "intake" | "one_pager" | "spec" | "design" | "prompt_plan" | "agents" | "export";
+  current_stage: StageSlug;
   approved: Record<string, boolean>;
   docs: string[];
   designs_count: number;
 };
 
 type DocName = "idea.md" | "idea_one_pager.md" | "spec.md" | "prompt_plan.md" | "AGENTS.md";
-type StageSlug = SessionResponse["current_stage"];
 
 const stageMeta: Array<{ slug: StageSlug; label: string }> = [
   { slug: "intake", label: "Intake" },
@@ -52,8 +53,13 @@ const stageDocOrder: Array<{ stage: StageSlug; docs: DocName[] }> = [
 
 type StageStatus = "Draft" | "Ready" | "Approved";
 
-function stageStatusFor(slug: StageSlug, session: SessionResponse | null): StageStatus {
+function stageStatusFor(
+  slug: StageSlug,
+  session: SessionResponse | null,
+  readyOverrides?: Partial<Record<StageSlug, boolean>>
+): StageStatus {
   if (session?.approved[slug]) return "Approved";
+  if (readyOverrides?.[slug]) return "Ready";
   if (!session) return "Draft";
   const currentIndex = stageOrder.indexOf(session.current_stage);
   const stageIndex = stageOrder.indexOf(slug);
@@ -75,6 +81,7 @@ export default function Shell() {
   const [docView, setDocView] = useState<"preview" | "edit">("preview");
   const [saving, setSaving] = useState(false);
   const [locked, setLocked] = useState(false);
+  const [stageReadyOverrides, setStageReadyOverrides] = useState<Partial<Record<StageSlug, boolean>>>({});
 
   useEffect(() => {
     void fetch("/api/session", { credentials: "include" })
@@ -90,6 +97,24 @@ export default function Shell() {
       .finally(() => setLoading(false));
   }, []);
 
+  const fetchDoc = useCallback(
+    (name: DocName) => {
+      return fetch(`/api/docs/${encodeURIComponent(name)}`, { credentials: "include" })
+        .then((r) => (r.ok ? r.json() : Promise.reject(r)))
+        .then((json: { content: string }) => {
+          if (selectedDoc === name) {
+            setDocContent(json.content ?? "");
+          }
+        })
+        .catch(() => {
+          if (selectedDoc === name) {
+            setDocContent("");
+          }
+        });
+    },
+    [selectedDoc]
+  );
+
   useEffect(() => {
     if (!selectedDoc) {
       setDocContent("");
@@ -97,11 +122,8 @@ export default function Shell() {
     }
     setLocked(false);
     setDocView("preview");
-    void fetch(`/api/docs/${encodeURIComponent(selectedDoc)}`, { credentials: "include" })
-      .then((r) => (r.ok ? r.json() : Promise.reject(r)))
-      .then((json: { content: string }) => setDocContent(json.content ?? ""))
-      .catch(() => setDocContent(""));
-  }, [selectedDoc]);
+    void fetchDoc(selectedDoc);
+  }, [fetchDoc, selectedDoc]);
 
   const allowedDocs = useMemo(
     () => (session ? docsForStage(session.current_stage, session.docs) : []),
@@ -111,7 +133,19 @@ export default function Shell() {
   const currentStage = session?.current_stage ?? "intake";
   const stageLabel = stageMeta.find((meta) => meta.slug === currentStage)?.label ?? "Stage";
 
-  const stageStatus: StageStatus = useMemo(() => stageStatusFor(currentStage, session), [currentStage, session]);
+  useEffect(() => {
+    setStageReadyOverrides((prev) => {
+      if (!prev[currentStage]) return prev;
+      const next = { ...prev };
+      delete next[currentStage];
+      return next;
+    });
+  }, [currentStage]);
+
+  const stageStatus: StageStatus = useMemo(
+    () => stageStatusFor(currentStage, session, stageReadyOverrides),
+    [currentStage, session, stageReadyOverrides]
+  );
 
   const docStage = selectedDoc ? docStageMap[selectedDoc] : null;
   const docLocked = locked || (docStage ? Boolean(session?.approved[docStage]) : false);
@@ -169,6 +203,23 @@ export default function Shell() {
     }
   }
 
+  const handleStageReady = useCallback((stageName: string) => {
+    if (!stageName) return;
+    if (stageMeta.some((meta) => meta.slug === stageName)) {
+      setStageReadyOverrides((prev) => ({ ...prev, [stageName as StageSlug]: true }));
+    }
+  }, []);
+
+  const handleDocUpdated = useCallback(
+    (docName: string) => {
+      if (!docName) return;
+      if (docName === selectedDoc) {
+        void fetchDoc(docName as DocName);
+      }
+    },
+    [fetchDoc, selectedDoc]
+  );
+
   if (!session) {
     return (
       <div className="flex min-h-[80vh] items-center justify-center p-6 text-slate-600">
@@ -179,7 +230,7 @@ export default function Shell() {
 
   function docStatusFor(name: DocName): StageStatus {
     const stageSlug = docStageMap[name];
-    return stageStatusFor(stageSlug, session);
+    return stageStatusFor(stageSlug, session, stageReadyOverrides);
   }
 
   return (
@@ -197,7 +248,7 @@ export default function Shell() {
           </div>
           <nav className="flex flex-1 flex-wrap items-center justify-center gap-2 overflow-x-auto px-2">
             {stageMeta.map((stage, index) => {
-              const status = stageStatusFor(stage.slug, session);
+              const status = stageStatusFor(stage.slug, session, stageReadyOverrides);
               const isCurrent = stage.slug === currentStage;
               return (
                 <div
@@ -282,7 +333,7 @@ export default function Shell() {
               <div className="flex items-center gap-3">
                 <span className={`rounded-full px-3 py-1 text-xs font-semibold ${badgeTone[stageStatus]}`}>{stageStatus}</span>
                 <button
-                  disabled={stageStatus === "Draft"}
+                  disabled={stageStatus !== "Ready"}
                   onClick={approveStage}
                   className="rounded-lg bg-slate-700 px-5 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300"
                 >
@@ -291,7 +342,12 @@ export default function Shell() {
               </div>
             </div>
             <div className="mt-4 space-y-4">
-              <ChatPanel stage={session.current_stage} className="" />
+              <ChatPanel
+                stage={session.current_stage}
+                className=""
+                onDocUpdated={handleDocUpdated}
+                onStageReady={handleStageReady}
+              />
               <div className="rounded-2xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm text-blue-900">
                 💡 Ask one question at a time; stop when essentials are filled.
               </div>
