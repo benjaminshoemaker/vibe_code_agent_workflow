@@ -418,9 +418,9 @@ Tasks
 Iframe CSP present; external images blocked; 409 path displays CTA.
 
 **TODO**
-- [ ] Editor save path
-- [ ] Sandbox preview
-- [ ] Tests
+- [x] Editor save path
+- [x] Sandbox preview
+- [x] Tests (server 409 path already covered)
 
 ---
 

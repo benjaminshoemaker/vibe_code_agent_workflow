@@ -3,14 +3,22 @@
 @tailwind utilities;
 
 :root {
-  color-scheme: dark;
+  color-scheme: light;
   font-family: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
 
 body {
-  @apply min-h-screen bg-slate-950 text-slate-100 antialiased;
+  @apply min-h-screen bg-white text-slate-900 antialiased;
 }
 
 a {
   @apply text-brand-300 underline-offset-2 hover:text-brand-200;
+}
+
+@layer base {
+  textarea,
+  input,
+  select {
+    @apply bg-white text-slate-900 placeholder-slate-500;
+  }
 }
