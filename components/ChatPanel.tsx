@@ -8,7 +8,8 @@ import {
   MessageInput,
   TypingIndicator
 } from "@chatscope/chat-ui-kit-react";
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { streamChat } from "../lib/stream";
 
 type Role = "user" | "assistant" | "orchestrator";
 
@@ -63,12 +64,27 @@ function formatTimestamp(value: number) {
   return new Intl.DateTimeFormat("en", { hour: "numeric", minute: "2-digit" }).format(value);
 }
 
-export default function ChatPanel({ stage, className }: { stage: string; className?: string }) {
+type ChatPanelProps = {
+  stage: string;
+  className?: string;
+  onDocUpdated?: (docName: string) => void;
+  onStageReady?: (stage: string) => void;
+};
+
+export default function ChatPanel({ stage, className, onDocUpdated, onStageReady }: ChatPanelProps) {
   const [messages, setMessages] = useState<ChatItem[]>([]);
   const [typingRole, setTypingRole] = useState<Role | null>(null);
   const [isStreaming, setIsStreaming] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
   const requestInFlightRef = useRef(false);
   const streamingMessageIdRef = useRef<string | null>(null);
+  const abortRef = useRef<AbortController | null>(null);
+
+  useEffect(() => {
+    return () => {
+      abortRef.current?.abort();
+    };
+  }, []);
 
   const stageLabel = useMemo(() => stage.replace(/_/g, " " ), [stage]);
 
@@ -97,54 +113,97 @@ export default function ChatPanel({ stage, className }: { stage: string; classNa
   const onSend = useCallback(
     async (text: string) => {
       const trimmed = text.trim();
-      if (!trimmed || requestInFlightRef.current) return;
+      if (!trimmed) return;
+
+      if (requestInFlightRef.current) {
+        abortRef.current?.abort();
+        requestInFlightRef.current = false;
+        resetStreamState();
+      }
+
+      const controller = new AbortController();
+      abortRef.current = controller;
+
       requestInFlightRef.current = true;
+      setNotice(null);
       appendMessage("user", trimmed);
       setIsStreaming(true);
       setTypingRole("assistant");
       streamingMessageIdRef.current = null;
 
       try {
-        const res = await fetch("/api/chat", {
-          method: "POST",
-          credentials: "include",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ message: trimmed, stage })
-        });
-
-        const reader = res.body?.getReader();
-        const decoder = new TextDecoder();
-        let buffer = "";
-
-        if (reader) {
-          while (true) {
-            const { done, value } = await reader.read();
-            if (done) break;
-            buffer += decoder.decode(value, { stream: true });
-            let idx;
-            while ((idx = buffer.indexOf("\n\n")) !== -1) {
-              const raw = buffer.slice(0, idx);
-              buffer = buffer.slice(idx + 2);
-              const eventMatch = raw.match(/^event:\s*(.*)$/m);
-              const dataMatch = raw.match(/^data:\s*(.*)$/m);
-              if (!eventMatch || !dataMatch) continue;
-              const evt = eventMatch[1]?.trim();
-              const dat = dataMatch[1] ?? "";
-              if (evt === "assistant.delta") {
-                appendAssistantDelta(dat);
+        await streamChat({
+          message: trimmed,
+          stage,
+          signal: controller.signal,
+          handlers: {
+            onAssistantDelta: appendAssistantDelta,
+            onDocUpdated: (docName) => {
+              if (docName && onDocUpdated) {
+                onDocUpdated(docName);
               }
+            },
+            onStageReady: (readyStage) => {
+              if (readyStage && onStageReady) {
+                onStageReady(readyStage);
+              }
+            },
+            onStageNeedsMore: ({ reason }) => {
+              setNotice(reason ? `Stage needs more: ${reason}` : "Stage needs more input from you.");
+            },
+            onError: () => {
+              appendMessage("orchestrator", "The stream failed. Try again in a few seconds.");
             }
           }
-        }
+        });
       } catch {
-        appendMessage("orchestrator", "The stream failed. Try again in a few seconds.");
+        // errors handled via handlers
       } finally {
         requestInFlightRef.current = false;
         resetStreamState();
       }
     },
-    [appendAssistantDelta, appendMessage, resetStreamState, stage]
+    [appendAssistantDelta, appendMessage, onDocUpdated, onStageReady, resetStreamState, stage]
   );
+
+  useEffect(() => {
+    const handler = (event: Event) => {
+      const custom = event as CustomEvent<{
+        type: "assistant.delta" | "doc.updated" | "stage.ready" | "stage.needs_more";
+        data?: string;
+        payload?: { stage?: string; reason?: string };
+      }>;
+      const detail = custom.detail;
+      if (!detail) return;
+      switch (detail.type) {
+        case "assistant.delta":
+          appendAssistantDelta(detail.data ?? "");
+          break;
+        case "doc.updated":
+          if (detail.data && onDocUpdated) {
+            onDocUpdated(detail.data);
+          }
+          break;
+        case "stage.ready":
+          if (detail.data && onStageReady) {
+            onStageReady(detail.data);
+          }
+          break;
+        case "stage.needs_more":
+          if (detail.payload?.reason) {
+            setNotice(`Stage needs more: ${detail.payload.reason}`);
+          } else if (detail.data) {
+            setNotice(`Stage needs more: ${detail.data}`);
+          }
+          break;
+        default:
+          break;
+      }
+    };
+
+    window.addEventListener("chat.debug", handler as EventListener);
+    return () => window.removeEventListener("chat.debug", handler as EventListener);
+  }, [appendAssistantDelta, onDocUpdated, onStageReady]);
 
   return (
     <div className={`space-y-3 ${className ?? ""}`}>
@@ -154,6 +213,14 @@ export default function ChatPanel({ stage, className }: { stage: string; classNa
           Stage: {stageLabel}
         </span>
       </div>
+      {notice ? (
+        <div
+          data-testid="chat-notice"
+          className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900"
+        >
+          {notice}
+        </div>
+      ) : null}
       <style jsx global>{`
         .cs-main-container {
           background: white !important;

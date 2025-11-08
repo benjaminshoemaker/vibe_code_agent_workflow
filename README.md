@@ -64,6 +64,7 @@ Additional helpers:
 | 13 — App shell with constrained left rail | Authenticated workspace now mirrors the intake design with staged chips, constrained doc rail, and disabled Approve controls until validators pass. |
 | 14 — Markdown editor & sandboxed preview | Doc editor adds Save + inline CTA on 409, while the Preview tab now renders via a sandboxed iframe that enforces the Markdown CSP and blocks remote/javascript images. |
 | 15 — ChatKit UI | Chat now uses ChatKit’s message list/composer with role badges, typing indicator, and stage-aware styling; landing “Start new session” flows reset the chat alongside docs. |
+| 16 — Streaming client | `/lib/stream.ts` now drives POST-based SSE with reconnection, so chat handles assistant deltas, doc.updated refreshes, stage.ready enablement, and stage.needs_more notices in real time. |
 
 ## Deployment flow
 

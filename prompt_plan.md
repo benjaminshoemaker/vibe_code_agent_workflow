@@ -474,11 +474,11 @@ Tasks
 E2E: fake events drive UI states; verify POST streaming works.
 
 **TODO**
-- [ ] Streaming client with fetch
-- [ ] SSE parser with TextDecoder
-- [ ] Event handlers
-- [ ] Reconnect with backoff
-- [ ] E2E
+- [x] Streaming client with fetch
+- [x] SSE parser with TextDecoder
+- [x] Event handlers
+- [x] Reconnect with backoff
+- [x] E2E
 
 ---
 

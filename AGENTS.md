@@ -33,6 +33,7 @@ Strip macOS metadata directories (`__MACOSX/`) and `._*` resource-fork files fro
 - When a stage (plan step) is complete with green tests, update the README “Release notes” section with any user-facing impact (or explicitly state “No user-facing changes” if applicable).
 - Even when automated coverage exists, always suggest a feasible manual test path so the human can exercise the feature end-to-end.
 - After a plan step is finished, document its completion state with a short checklist. Include: step name/number, test command/results, `prompt_plan.md` status, manual checks performed (mark as ✅ only after the human confirms they ran to their satisfaction), release notes status, and an inline commit summary string the human can copy/paste.
+- The human handles `git add`, `git commit`, and `git push`; do not run those commands yourself.
 
 ## Guardrails for agents
 - Make the smallest change that passes tests and improves the code.
