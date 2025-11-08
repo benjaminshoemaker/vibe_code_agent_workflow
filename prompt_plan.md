@@ -396,6 +396,8 @@ E2E: shell renders; left rail shows only current + prior docs; approve disabled 
 - [x] Left rail (current + prior only)
 - [x] Approve bar
 - [x] E2E (basic render + headers; app-shell check skipped due to hydration timing)
+- [x] Mirror intake layout (global nav + stacked chat/doc sections)
+- [x] Align header nav chip sizing and Approve button placement with intake design
 
 ---
 
@@ -421,6 +423,10 @@ Iframe CSP present; external images blocked; 409 path displays CTA.
 - [x] Editor save path
 - [x] Sandbox preview
 - [x] Tests (server 409 path already covered)
+- [x] Iframe preview uses meta-CSP + sanitizes Markdown rendering
+- [x] Block remote images / `javascript:` URLs in preview output
+- [x] UI CTA for DOC_APPROVED (Start new session)
+- [x] Front-end + unit tests for preview + CTA paths
 
 ---
 

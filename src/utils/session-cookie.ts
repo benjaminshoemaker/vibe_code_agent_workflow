@@ -11,9 +11,10 @@ export function createSessionId() {
 
 export function setSessionCookie(reply: FastifyReply, sessionId: string) {
   const expires = new Date(Date.now() + THIRTY_DAYS_SECONDS * 1000);
+  const secure = env.SESSION_COOKIE_SECURE ?? env.NODE_ENV === "production";
   reply.setCookie(SESSION_COOKIE_NAME, sessionId, {
     httpOnly: true,
-    secure: env.NODE_ENV === "production",
+    secure,
     sameSite: "lax",
     path: "/",
     maxAge: THIRTY_DAYS_SECONDS,
