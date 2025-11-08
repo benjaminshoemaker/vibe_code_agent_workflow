@@ -13,7 +13,7 @@ Pre-seed or seed founder without a full-time engineering team who plans to use A
 Web app (desktop-first, mobile responsive). Two-pane layout using ChatKit (chat UI). Right rail: chat. Left rail: collapsible documents with live preview and version notes.
 
 ## Product summary
-A chat-guided workflow that converts an initial idea into five agent-ready Markdown outputs. The stage engine validates required fields, keeps chat and documents in sync, and only advances when exit criteria are met. Users can edit and approve each document inline. Final outputs export as a Zip or a GitHub PR branch.
+A chat-guided workflow that converts an initial idea into five agent-ready Markdown outputs. The stage engine validates required fields, keeps chat and documents in sync, and only advances when exit criteria are met. Users can edit and approve each document inline. Final outputs export as a Zip.
 
 ## Core Flow
 1. Start a new or resume a prior session. Right: chat. Left: doc list.

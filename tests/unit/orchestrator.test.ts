@@ -1,31 +1,19 @@
-import { describe, expect, it, vi, type Mock } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+import { randomUUID } from "node:crypto";
+import { eq } from "drizzle-orm";
 import type { StageDriver } from "../../src/orchestrator/types";
 import { runStage } from "../../src/services/orchestrator";
-
-vi.mock("../../src/libs/openai", () => ({
-  generateResponse: vi.fn()
-}));
-
-const { generateResponse } = await import("../../src/libs/openai");
+import { db } from "../../src/db/client";
+import { chatMessages, docs, docNames, sessions } from "../../src/db/schema";
 
 describe("LangGraph stage orchestrator", () => {
-  it("emits assistant deltas, stage.ready, and respects re-ingest policy", async () => {
-    (generateResponse as Mock).mockResolvedValueOnce({
-      output: [
-        {
-          message: {
-            role: "assistant",
-            content: [{ type: "output_text", text: "Stage output ready." }]
-          }
-        }
-      ]
-    });
-
+  it("runs writers, emits doc.updated + stage.ready, and respects re-ingest policy", async () => {
     const events: string[] = [];
     const reingestPhases: string[] = [];
+    const sessionId = await seedSession();
 
     const result = await runStage({
-      sessionId: "sess-1",
+      sessionId,
       stage: "intake",
       onEvent: (event) => events.push(event.event),
       reingest: async (payload) => {
@@ -34,9 +22,10 @@ describe("LangGraph stage orchestrator", () => {
     });
 
     expect(result.status).toBe("ready");
-    expect(events).toContain("assistant.delta");
-    expect(events).toContain("stage.ready");
+    expect(events).toEqual(expect.arrayContaining(["assistant.delta", "doc.updated", "stage.ready"]));
     expect(reingestPhases).toEqual(["stage_start", "pre_validation"]);
+
+    await cleanupSession(sessionId);
   });
 
   it("emits stage.needs_more when the LLM budget is exceeded", async () => {
@@ -60,3 +49,42 @@ describe("LangGraph stage orchestrator", () => {
     expect(result.events.at(-1)?.event).toBe("stage.needs_more");
   });
 });
+
+async function seedSession() {
+  const sessionId = randomUUID();
+  const now = Date.now();
+  await db.insert(sessions).values({
+    sessionId,
+    currentStage: "intake",
+    approvedIntake: false,
+    approvedOnePager: false,
+    approvedSpec: false,
+    approvedDesign: false,
+    approvedPromptPlan: false,
+    approvedAgents: false,
+    createdAt: now,
+    lastActivity: now
+  });
+
+  await db.insert(docs).values(
+    docNames.map((name) => ({
+      sessionId,
+      name,
+      content: "",
+      approved: false,
+      updatedAt: now
+    }))
+  );
+
+  await db.insert(chatMessages).values({
+    sessionId,
+    role: "user",
+    content: "Manual intake summary to seed the writers."
+  });
+
+  return sessionId;
+}
+
+async function cleanupSession(sessionId: string) {
+  await db.delete(sessions).where(eq(sessions.sessionId, sessionId));
+}

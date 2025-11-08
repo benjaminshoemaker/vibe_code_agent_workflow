@@ -505,14 +505,15 @@ Stage handlers that persist docs.
 Integration: intake → one_pager → spec produces non-empty docs.
 
 **TODO**
-- [ ] Intake
-- [ ] One-pager (with trivial patch)
-- [ ] Spec (with DoD)
-- [ ] Design prompt
-- [ ] Prompt plan
-- [ ] Agents (verbatim section)
-- [ ] doc.updated emits
-- [ ] Tests
+- [x] Intake
+- [x] One-pager (with trivial patch)
+- [x] Spec (with DoD)
+- [x] Design prompt
+- [x] Prompt plan
+- [x] Agents (verbatim section)
+- [x] doc.updated emits
+- [x] Tests
+- [x] Manual QA verified
 
 ---
 
@@ -524,6 +525,7 @@ Complete /api/stages/:stage/approve.
 
 Tasks
 1) On request: re-ingest docs/index; run validator; if ok set approved flag and advance current_stage; else return reasons.
+2) Bridge orchestrator stage events into the chat SSE stream: forward `doc.updated` and `stage.ready` (and keep `assistant.delta`, `stage.needs_more`) so the UI can react (e.g., Approve button enabling) without separate polling.
 ```
 
 **Expected artifacts**  
@@ -535,6 +537,7 @@ Approve advances; invalid rejected with reasons.
 **TODO**
 - [ ] Wire re-ingest
 - [ ] Update session flags
+- [ ] Bridge orchestrator events into chat SSE
 - [ ] Tests
 
 ---
