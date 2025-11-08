@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect, Page } from "@playwright/test";
 
 test("home page renders hero content", async ({ page }) => {
   await page.goto("/");
@@ -9,7 +9,7 @@ test("home page renders hero content", async ({ page }) => {
       "A structured, multi-stage workflow that transforms your product concept into comprehensive documentation ready for AI agents and development teams."
     )
   ).toBeVisible();
-  await expect(page.getByRole("link", { name: "Start new session" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Start new session" })).toBeVisible();
   await expect(page.getByRole("link", { name: "Resume" })).toBeVisible();
   // Stage chips present
   for (const stage of [
@@ -31,13 +31,9 @@ test("home page renders hero content", async ({ page }) => {
 
 test("app shell renders with left rail and approve disabled", async ({ page }) => {
   // Start a session within the page context so the httpOnly cookie is stored for this tab
+  await initSession(page);
   await page.goto("/app");
-  const status = await page.evaluate(async () => {
-    const r = await fetch("/api/session/init", { method: "POST" });
-    return r.status;
-  });
-  expect(status).toBe(201);
-  await page.reload();
+  await page.waitForSelector('[data-testid="app-shell"]');
   const status2 = await page.evaluate(async () => (await fetch('/api/session')).status);
   expect(status2).toBe(200);
 });
@@ -53,3 +49,76 @@ test("security headers are present on web and api responses", async ({ page, req
   expect(apiResponse.headers()["content-security-policy"]).toContain("default-src 'self'");
   expect(apiResponse.headers()["x-content-type-options"]).toBe("nosniff");
 });
+
+test("doc editor surfaces Start new session CTA after DOC_APPROVED response", async ({ page }) => {
+  await initSession(page);
+  await page.goto("/app");
+  await page.waitForSelector('[data-testid="app-shell"]');
+  await page.getByTestId("doc-tab-edit").click();
+  const textarea = page.getByPlaceholder("Start typing...");
+  await textarea.fill("Updated idea");
+  const saveButton = page.getByTestId("doc-save-button");
+  await saveButton.click();
+  await expect(saveButton).toBeEnabled();
+
+  const approveStatus = await page.evaluate(async () => {
+    const res = await fetch("/api/stages/intake/approve", { method: "POST" });
+    return res.status;
+  });
+  expect(approveStatus).toBe(200);
+
+  await textarea.fill("Updated idea with another edit");
+  await saveButton.click();
+  await expect(page.getByText("This document is approved. Start a new session to make further changes.")).toBeVisible();
+  await expect(page.getByRole("link", { name: "Start new session" })).toBeVisible();
+});
+
+test("landing Start new session button resets progress", async ({ page }) => {
+  await initSession(page);
+  await page.goto("/app");
+  await page.waitForSelector('[data-testid="app-shell"]');
+  await page.getByTestId("doc-tab-edit").click();
+  const textarea = page.getByPlaceholder("Start typing...");
+  await textarea.fill("Old session content");
+  await page.getByTestId("doc-save-button").click();
+  await expect(textarea).toHaveValue("Old session content");
+
+  const storedContent = await page.evaluate(async () => {
+    const res = await fetch("/api/docs/idea.md", { credentials: "include" });
+    const data = (await res.json()) as { content: string };
+    return data.content;
+  });
+  expect(storedContent).toContain("Old session content");
+
+  await page.goto("/");
+  await page.getByTestId("start-session-btn").click();
+  await page.waitForURL("**/app");
+  await page.waitForSelector('[data-testid="app-shell"]');
+
+  const newSessionContent = await page.evaluate(async () => {
+    const res = await fetch("/api/docs/idea.md", { credentials: "include" });
+    const data = (await res.json()) as { content: string };
+    return data.content;
+  });
+  expect(newSessionContent ?? "").toBe("");
+});
+
+async function initSession(page: Page) {
+  await page.context().clearCookies();
+  const response = await page.request.post("/api/session/init");
+  if (response.status() !== 201) {
+    throw new Error(`Session init failed with status ${response.status()}`);
+  }
+  const { session_id } = (await response.json()) as { session_id: string };
+  await page.context().addCookies([
+    {
+      name: "sid",
+      value: session_id,
+      domain: "127.0.0.1",
+      path: "/",
+      httpOnly: false,
+      secure: false,
+      sameSite: "Lax"
+    }
+  ]);
+}

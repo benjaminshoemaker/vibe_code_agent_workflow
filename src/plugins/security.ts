@@ -2,7 +2,7 @@ import fp from "fastify-plugin";
 import type { FastifyPluginCallback } from "fastify";
 
 function buildCsp(dev: boolean) {
-  const scriptSrc = dev ? "script-src 'self' 'unsafe-eval' 'unsafe-inline'" : "script-src 'self'";
+  const scriptSrc = dev ? "script-src 'self' 'unsafe-eval' 'unsafe-inline'" : "script-src 'self' 'unsafe-inline'";
   return [
     "default-src 'self'",
     scriptSrc,

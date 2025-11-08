@@ -53,7 +53,7 @@ Additional helpers:
 | 2 — Single-origin Fastify + Next | `/api/health` exposes a JSON `{ok:true}` heartbeat for uptime monitoring. |
 | 3 — Security headers & CSP | All routes now emit strict CSP and hardened headers; no action required. |
 | 4 — Drizzle/Turso integration | Local development automatically provisions `.tmp/dev.db`; Turso URLs can still be supplied via env vars. |
-| 5 — Session cookie + `/api/session` | Use `POST /api/session/init` and `GET /api/session` to manage session cookies (host-only, rolling TTL). |
+| 5 — Session cookie + `/api/session` | Use `POST /api/session/init` and `GET /api/session` to manage session cookies (host-only, rolling TTL). The landing-page “Start new session” button now calls the init API first so you always begin from a clean slate. |
 | 6 — Docs API + re-ingest hook | `/api/docs/:name` now supports GET/PUT so users can edit idea/spec files until they’re approved. |
 | 7 — OpenAI wrapper | Internal Responses API helper added (no new endpoints). |
 | 8 — `/api/chat` SSE | `/api/chat` streams Server-Sent Events; test with `curl -N -b cookies.txt http://localhost:3000/api/chat`. |
@@ -61,6 +61,8 @@ Additional helpers:
 | 10 — Stage validators + approvals | `/api/stages/:stage/approve` now enforces per-stage validators, locks docs, and advances sessions once requirements pass. |
 | 11 — Designs upload API | `/api/designs/upload` ingests ZIPs (≤100MB/300 files), replaces the design index, and `/api/designs/index` lists normalized assets. |
 | 12 — Landing page | Public landing now includes hero CTA buttons, stage strip, doc snippets, and a security note for quick orientation. |
+| 13 — App shell with constrained left rail | Authenticated workspace now mirrors the intake design with staged chips, constrained doc rail, and disabled Approve controls until validators pass. |
+| 14 — Markdown editor & sandboxed preview | Doc editor adds Save + inline CTA on 409, while the Preview tab now renders via a sandboxed iframe that enforces the Markdown CSP and blocks remote/javascript images. |
 
 ## Deployment flow
 

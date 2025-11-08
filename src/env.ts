@@ -24,6 +24,17 @@ const emptyToUndefined = (value: unknown) => {
 
 const optionalString = () => z.preprocess(emptyToUndefined, z.string().min(1).optional());
 const optionalUrl = () => z.preprocess(emptyToUndefined, z.string().url().optional());
+const optionalBoolean = () =>
+  z.preprocess((value) => {
+    const normalized = emptyToUndefined(value);
+    if (normalized === undefined) return undefined;
+    if (typeof normalized === "boolean") return normalized;
+    if (typeof normalized === "string") {
+      if (normalized.toLowerCase() === "true") return true;
+      if (normalized.toLowerCase() === "false") return false;
+    }
+    return normalized;
+  }, z.boolean().optional());
 
 const envSchema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
@@ -46,7 +57,8 @@ const envSchema = z.object({
   OPENAI_API_BASE: optionalUrl(),
   OPENAI_MODEL: optionalString(),
   TURSO_DATABASE_URL: optionalUrl(),
-  TURSO_AUTH_TOKEN: optionalString()
+  TURSO_AUTH_TOKEN: optionalString(),
+  SESSION_COOKIE_SECURE: optionalBoolean()
 });
 
 export type AppEnv = z.infer<typeof envSchema>;

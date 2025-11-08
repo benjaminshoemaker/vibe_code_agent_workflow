@@ -17,12 +17,17 @@ function RoleBadge({ role }: { role: Role }) {
     assistant: "bg-emerald-100 text-emerald-800",
     orchestrator: "bg-purple-100 text-purple-800"
   };
+  const labels: Record<Role, string> = {
+    user: "User",
+    assistant: "Assistant",
+    orchestrator: "Orchestrator"
+  };
   return (
-    <span className={`ml-2 rounded-full px-2 py-0.5 text-[10px] font-semibold ${styles[role]}`}>{role}</span>
+    <span className={`ml-2 rounded-full px-2 py-0.5 text-[10px] font-semibold ${styles[role]}`}>{labels[role]}</span>
   );
 }
 
-export default function ChatPanel({ stage }: { stage: string }) {
+export default function ChatPanel({ stage, className }: { stage: string; className?: string }) {
   const [messages, setMessages] = useState<ChatItem[]>([]);
   const sendingRef = useRef(false);
 
@@ -79,8 +84,73 @@ export default function ChatPanel({ stage }: { stage: string }) {
   );
 
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-2 shadow-sm">
-      <MainContainer style={{ height: "60vh" }}>
+    <div className={className}>
+      <style jsx global>{`
+        /* ChatKit overrides for cleaner design */
+        .cs-main-container {
+          background: white !important;
+          border: 1px solid #e2e8f0 !important;
+        }
+        .cs-chat-container {
+          background: white !important;
+        }
+        .cs-message-list {
+          background: white !important;
+        }
+        .cs-message-input {
+          background: white !important;
+          border: none !important;
+          border-top: 1px solid #e2e8f0 !important;
+          border-radius: 0 !important;
+          padding: 1rem !important;
+          min-height: 70px !important;
+        }
+        .cs-message-input__content-editor-wrapper {
+          background: #f8fafc !important;
+          border: 1px solid #e2e8f0 !important;
+          border-radius: 0.75rem !important;
+          min-height: 52px !important;
+          padding: 0.5rem !important;
+        }
+        .cs-message-input__content-editor {
+          background: #f8fafc !important;
+          color: #64748b !important;
+          padding: 0.5rem 0.75rem !important;
+          min-height: 40px !important;
+          font-size: 0.9375rem !important;
+        }
+        .cs-message-input__content-editor::placeholder {
+          color: #94a3b8 !important;
+        }
+        .cs-message-input__content-editor:focus {
+          outline: none !important;
+        }
+        .cs-message-input__tools {
+          padding: 0.25rem 0.5rem !important;
+        }
+        .cs-button--send {
+          background: #475569 !important;
+          border-radius: 0.5rem !important;
+          padding: 0.5rem 1rem !important;
+          min-height: 36px !important;
+          font-weight: 600 !important;
+        }
+        .cs-button--send:hover {
+          background: #334155 !important;
+        }
+        .cs-button--send svg {
+          width: 18px !important;
+          height: 18px !important;
+        }
+        .cs-message--incoming .cs-message__content {
+          background: #f8fafc !important;
+          border: 1px solid #e2e8f0 !important;
+        }
+        .cs-message--outgoing .cs-message__content {
+          background: #3b82f6 !important;
+        }
+      `}</style>
+      <MainContainer style={{ height: "360px", borderRadius: "0.75rem" }}>
         <ChatContainer>
           <MessageList>
             {messages.map((m) => (
@@ -99,7 +169,7 @@ export default function ChatPanel({ stage }: { stage: string }) {
               </div>
             ))}
           </MessageList>
-          <MessageInput placeholder="Type a message" onSend={onSend} attachButton={false} />
+          <MessageInput placeholder="Type your message..." onSend={onSend} attachButton={false} sendButton={true} />
         </ChatContainer>
       </MainContainer>
     </div>

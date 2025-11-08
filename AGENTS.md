@@ -13,9 +13,14 @@ This repo turns a raw idea into five agent‑ready Markdown docs plus a design b
 - `AGENTS.md` — This file. Must include the **Agent responsibility** section below for the **agents** stage validator to pass.  
 
 ## `/designs/` folder
-Design exports uploaded as a ZIP. 
+Design exports uploaded as a ZIP.
 When generating or using `prompt_plan.md`, reference assets by their indexed path (for example, `1-Landing.png`).
 Strip macOS metadata directories (`__MACOSX/`) and `._*` resource-fork files from every ZIP so only real image/PDF assets are stored.
+
+**UI Implementation Guidance:**
+- **Always access files in `/designs/` and its subfolders whenever doing any UI changes or additions.**
+- Follow the designs contained in that folder as a guide for layout, styling, components, and user experience.
+- Reference specific design files when implementing UI features to ensure consistency with the intended design.
 
 ---
 

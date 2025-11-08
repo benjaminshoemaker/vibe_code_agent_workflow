@@ -49,8 +49,8 @@ export function createApp({ nextHandler, dev }: CreateAppOptions): FastifyInstan
         return reply.callNotFound();
       }
 
-      await nextHandler(request.raw, reply.raw);
       reply.hijack();
+      await nextHandler(request.raw, reply.raw);
     }
   });
 
@@ -73,7 +73,7 @@ export async function buildServer(): Promise<BuiltServer> {
 export async function start() {
   const { app, nextApp } = await buildServer();
   const port = env.PORT ?? 3000;
-  const host = env.HOST ?? "0.0.0.0";
+  const host = env.HOST ?? "127.0.0.1";
 
   let shuttingDown = false;
   const shutdown = async (signal: NodeJS.Signals) => {

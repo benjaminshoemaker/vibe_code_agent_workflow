@@ -1,6 +1,9 @@
 "use client";
+
 import { useEffect, useMemo, useState } from "react";
 import ChatPanel from "./ChatPanel";
+import MarkdownEditor from "./MarkdownEditor";
+import MarkdownPreview from "./MarkdownPreview";
 
 type SessionResponse = {
   current_stage: "intake" | "one_pager" | "spec" | "design" | "prompt_plan" | "agents" | "export";
@@ -10,66 +13,66 @@ type SessionResponse = {
 };
 
 type DocName = "idea.md" | "idea_one_pager.md" | "spec.md" | "prompt_plan.md" | "AGENTS.md";
+type StageSlug = SessionResponse["current_stage"];
 
-const stageDocOrder: Array<{ stage: SessionResponse["current_stage"]; docs: DocName[] }> = [
+const stageMeta: Array<{ slug: StageSlug; label: string }> = [
+  { slug: "intake", label: "Intake" },
+  { slug: "one_pager", label: "One-Pager" },
+  { slug: "spec", label: "Spec" },
+  { slug: "design", label: "Design" },
+  { slug: "prompt_plan", label: "Prompt Plan" },
+  { slug: "agents", label: "Agents" },
+  { slug: "export", label: "Export" }
+];
+
+const docStageMap: Record<DocName, StageSlug> = {
+  "idea.md": "intake",
+  "idea_one_pager.md": "one_pager",
+  "spec.md": "spec",
+  "prompt_plan.md": "prompt_plan",
+  "AGENTS.md": "agents"
+};
+
+const stageOrder = stageMeta.map((stage) => stage.slug);
+
+function docsForStage(stage: StageSlug, available: string[]): DocName[] {
+  const names = stageDocOrder.find((s) => s.stage === stage)?.docs ?? [];
+  return names.filter((name) => available.includes(name)) as DocName[];
+}
+
+const stageDocOrder: Array<{ stage: StageSlug; docs: DocName[] }> = [
   { stage: "intake", docs: ["idea.md"] },
   { stage: "one_pager", docs: ["idea.md", "idea_one_pager.md"] },
   { stage: "spec", docs: ["idea.md", "idea_one_pager.md", "spec.md"] },
   { stage: "design", docs: ["idea.md", "idea_one_pager.md", "spec.md"] },
-  {
-    stage: "prompt_plan",
-    docs: ["idea.md", "idea_one_pager.md", "spec.md", "prompt_plan.md"]
-  },
-  {
-    stage: "agents",
-    docs: ["idea.md", "idea_one_pager.md", "spec.md", "prompt_plan.md", "AGENTS.md"]
-  },
-  {
-    stage: "export",
-    docs: ["idea.md", "idea_one_pager.md", "spec.md", "prompt_plan.md", "AGENTS.md"]
-  }
+  { stage: "prompt_plan", docs: ["idea.md", "idea_one_pager.md", "spec.md", "prompt_plan.md"] },
+  { stage: "agents", docs: ["idea.md", "idea_one_pager.md", "spec.md", "prompt_plan.md", "AGENTS.md"] },
+  { stage: "export", docs: ["idea.md", "idea_one_pager.md", "spec.md", "prompt_plan.md", "AGENTS.md"] }
 ];
 
-function docsForStage(stage: SessionResponse["current_stage"], available: string[]): DocName[] {
-  const target = stageDocOrder.find((s) => s.stage === stage);
-  const names = target ? target.docs : [];
-  return names.filter((n) => available.includes(n)) as DocName[];
+type StageStatus = "Draft" | "Ready" | "Approved";
+
+function stageStatusFor(slug: StageSlug, session: SessionResponse | null): StageStatus {
+  if (session?.approved[slug]) return "Approved";
+  if (!session) return "Draft";
+  const currentIndex = stageOrder.indexOf(session.current_stage);
+  const stageIndex = stageOrder.indexOf(slug);
+  if (stageIndex < currentIndex) return "Ready";
+  return "Draft";
 }
 
-function escapeHtml(input: string) {
-  return input
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/\"/g, "&quot;")
-    .replace(/'/g, "&#039;");
-}
-
-function markdownToHtml(md: string) {
-  const escaped = escapeHtml(md);
-  const lines = escaped.split(/\r?\n/);
-  const out: string[] = [];
-  for (const raw of lines) {
-    const m = raw.match(/^(#{1,6})\s+(.*)$/);
-    if (m) {
-      const level = m[1].length;
-      const text = m[2];
-      out.push(`<h${level}>${text}</h${level}>`);
-      continue;
-    }
-    out.push(raw);
-  }
-  // group paragraphs by blank lines
-  const joined = out.join("\n");
-  const paragraphs = joined.split(/\n\n+/).map((p) => `<p>${p.replace(/\n/g, "<br/>")}</p>`);
-  return paragraphs.join("\n");
-}
+const badgeTone: Record<StageStatus, string> = {
+  Draft: "bg-slate-100 text-slate-700",
+  Ready: "bg-amber-50 text-amber-800",
+  Approved: "bg-emerald-50 text-emerald-700"
+};
 
 export default function Shell() {
   const [session, setSession] = useState<SessionResponse | null>(null);
+  const [loading, setLoading] = useState(true);
   const [selectedDoc, setSelectedDoc] = useState<DocName | null>(null);
-  const [docContent, setDocContent] = useState<string>("");
-  const [tab, setTab] = useState<"edit" | "preview" | "chat">("edit");
+  const [docContent, setDocContent] = useState("");
+  const [docView, setDocView] = useState<"preview" | "edit">("preview");
   const [saving, setSaving] = useState(false);
   const [locked, setLocked] = useState(false);
 
@@ -82,12 +85,18 @@ export default function Shell() {
         setSelectedDoc(allowed[allowed.length - 1] ?? null);
       })
       .catch(() => {
-        // ignore; page may render a call-to-action instead
-      });
+        setSession(null);
+      })
+      .finally(() => setLoading(false));
   }, []);
 
   useEffect(() => {
-    if (!selectedDoc) return;
+    if (!selectedDoc) {
+      setDocContent("");
+      return;
+    }
+    setLocked(false);
+    setDocView("preview");
     void fetch(`/api/docs/${encodeURIComponent(selectedDoc)}`, { credentials: "include" })
       .then((r) => (r.ok ? r.json() : Promise.reject(r)))
       .then((json: { content: string }) => setDocContent(json.content ?? ""))
@@ -99,17 +108,13 @@ export default function Shell() {
     [session]
   );
 
-  const stageStatus: "Draft" | "Ready" | "Approved" = useMemo(() => {
-    if (!session) return "Draft";
-    const approvedKey =
-      session.current_stage === "one_pager"
-        ? "one_pager"
-        : (session.current_stage as keyof SessionResponse["approved"]);
-    // If approved for this stage
-    if (session.approved[approvedKey as string]) return "Approved";
-    // Without SSE wiring, treat as Draft by default
-    return "Draft";
-  }, [session]);
+  const currentStage = session?.current_stage ?? "intake";
+  const stageLabel = stageMeta.find((meta) => meta.slug === currentStage)?.label ?? "Stage";
+
+  const stageStatus: StageStatus = useMemo(() => stageStatusFor(currentStage, session), [currentStage, session]);
+
+  const docStage = selectedDoc ? docStageMap[selectedDoc] : null;
+  const docLocked = locked || (docStage ? Boolean(session?.approved[docStage]) : false);
 
   async function handleCopy(name: DocName) {
     const r = await fetch(`/api/docs/${encodeURIComponent(name)}`, { credentials: "include" });
@@ -118,8 +123,11 @@ export default function Shell() {
     await navigator.clipboard.writeText(content ?? "");
   }
 
-  function download(name: DocName) {
-    const blob = new Blob([docContent], { type: "text/markdown;charset=utf-8" });
+  async function downloadDoc(name: DocName) {
+    const r = await fetch(`/api/docs/${encodeURIComponent(name)}`, { credentials: "include" });
+    if (!r.ok) return;
+    const { content } = (await r.json()) as { content: string };
+    const blob = new Blob([content ?? ""], { type: "text/markdown;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
@@ -129,7 +137,7 @@ export default function Shell() {
   }
 
   async function saveDoc() {
-    if (!selectedDoc) return;
+    if (!selectedDoc || docLocked) return;
     setSaving(true);
     try {
       const res = await fetch(`/api/docs/${encodeURIComponent(selectedDoc)}`, {
@@ -152,153 +160,206 @@ export default function Shell() {
       method: "POST",
       credentials: "include"
     });
-    // Refresh session to pick up stage change
     const r = await fetch("/api/session", { credentials: "include" });
-    if (r.ok) setSession(await r.json());
+    if (r.ok) {
+      const json = (await r.json()) as SessionResponse;
+      setSession(json);
+      const allowed = docsForStage(json.current_stage, json.docs);
+      setSelectedDoc(allowed[allowed.length - 1] ?? null);
+    }
   }
 
   if (!session) {
     return (
-      <div className="mx-auto max-w-5xl p-6 text-center text-slate-600">
-        <p>Initialize a session from the home page to start.</p>
+      <div className="flex min-h-[80vh] items-center justify-center p-6 text-slate-600">
+        <p>{loading ? "Loading workspace…" : "Initialize a session from the home page to start."}</p>
       </div>
     );
   }
 
+  function docStatusFor(name: DocName): StageStatus {
+    const stageSlug = docStageMap[name];
+    return stageStatusFor(stageSlug, session);
+  }
+
   return (
-    <div className="flex min-h-[80vh] gap-6 p-6" data-testid="app-shell">
-      {/* Left rail */}
-      <aside className="w-[320px] shrink-0">
-        <header className="mb-4">
-          <h2 className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-600">
-            Documents
-          </h2>
-        </header>
-        <ul className="space-y-2">
-          {allowedDocs.map((name) => (
-            <li key={name} className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
-              <div className="flex items-center justify-between gap-3">
-                <button
-                  className="truncate text-left text-sm font-medium text-slate-900 hover:underline"
-                  onClick={() => {
-                    setSelectedDoc(name);
-                    setTab("edit");
-                  }}
-                >
-                  {name}
-                </button>
-                <div className="flex items-center gap-2 text-xs text-slate-600">
-                  <button className="hover:underline" onClick={() => setSelectedDoc(name)}>
-                    Edit
-                  </button>
-                  <span>•</span>
-                  <button className="hover:underline" onClick={() => handleCopy(name)}>
-                    Copy
-                  </button>
-                  <span>•</span>
-                  <button className="hover:underline" onClick={() => download(name)}>
-                    Download
-                  </button>
-                </div>
-              </div>
-            </li>
-          ))}
-        </ul>
-      </aside>
-
-      {/* Right pane */}
-      <section className="flex min-h-[70vh] flex-1 flex-col gap-4">
-        {/* Header */}
-        <div className="flex items-center justify-between">
+    <div className="flex min-h-screen flex-col bg-slate-50" data-testid="app-shell">
+      <header className="border-b border-slate-200 bg-white">
+        <div className="mx-auto flex w-full flex-wrap items-center gap-4 px-6 py-5">
           <div className="flex items-center gap-3">
-            <h1 className="text-lg font-semibold">Agent-Ready Planner</h1>
-            <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs text-slate-700">
-              {stageStatus}
-            </span>
-            <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs text-slate-700">
-              Session: active
-            </span>
-          </div>
-
-          <button
-            disabled={stageStatus === "Draft"}
-            onClick={approveStage}
-            className="rounded-full bg-blue-600 px-4 py-2 text-sm font-medium text-white disabled:cursor-not-allowed disabled:bg-slate-300"
-            title={stageStatus === "Draft" ? "Disabled until stage is ready" : "Approve stage"}
-          >
-            Approve
-          </button>
-        </div>
-
-        {/* Tabs */}
-        <div className="flex items-center gap-2 border-b border-slate-200">
-          <button
-            onClick={() => setTab("preview")}
-            className={`px-3 py-2 text-sm ${tab === "preview" ? "border-b-2 border-blue-600 font-medium" : "text-slate-600"}`}
-          >
-            Preview
-          </button>
-          <button
-            onClick={() => setTab("edit")}
-            className={`px-3 py-2 text-sm ${tab === "edit" ? "border-b-2 border-blue-600 font-medium" : "text-slate-600"}`}
-          >
-            Edit
-          </button>
-          <button
-            onClick={() => setTab("chat")}
-            className={`px-3 py-2 text-sm ${tab === "chat" ? "border-b-2 border-blue-600 font-medium" : "text-slate-600"}`}
-          >
-            Chat
-          </button>
-          <div className="ml-auto text-xs text-slate-500">Stage: {session.current_stage}</div>
-        </div>
-
-        {/* Content */}
-        <div className={tab === "edit" ? "flex flex-1 flex-col gap-3" : "hidden"}>
-          {locked && (
-            <div className="rounded border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
-              This document is approved. Start a new session to make further changes.
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-900 text-sm font-semibold text-white">
+              AP
             </div>
-          )}
-          <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-            <h3 className="mb-2 text-sm font-semibold text-slate-700">
-              {selectedDoc ?? "(no document selected)"}
-            </h3>
-            <textarea
-              value={docContent}
-              onChange={(e) => setDocContent(e.target.value)}
-              className="h-64 w-full resize-vertical rounded border border-slate-300 p-3 font-mono text-sm text-slate-800 outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="Start typing..."
-            />
-            <div className="mt-3 flex justify-end">
-              <button
-                onClick={saveDoc}
-                disabled={saving}
-                className="rounded bg-blue-600 px-4 py-2 text-sm font-medium text-white disabled:cursor-not-allowed disabled:bg-slate-300"
-              >
-                {saving ? "Saving..." : "Save"}
-              </button>
+            <div>
+              <p className="text-sm font-semibold text-slate-900">Agent-Ready Planner</p>
+              <p className="text-xs text-slate-500">Seven-stage guided workflow</p>
+            </div>
+          </div>
+          <nav className="flex flex-1 flex-wrap items-center justify-center gap-2 overflow-x-auto px-2">
+            {stageMeta.map((stage, index) => {
+              const status = stageStatusFor(stage.slug, session);
+              const isCurrent = stage.slug === currentStage;
+              return (
+                <div
+                  key={stage.slug}
+                  className={`flex flex-none items-center justify-between rounded-full border px-4 py-2 text-sm font-medium ${
+                    isCurrent ? "border-blue-400 bg-white shadow-sm" : "border-slate-200 bg-white"
+                  } min-w-[135px]`}
+                >
+                  <div className="flex items-center gap-2">
+                    <span
+                      className={`flex h-6 w-6 items-center justify-center rounded-full border text-xs font-semibold ${
+                        isCurrent ? "border-blue-300 text-blue-600" : "border-slate-200 text-slate-500"
+                      }`}
+                    >
+                      {index + 1}
+                    </span>
+                    <span className="truncate">{stage.label}</span>
+                  </div>
+                  <span className="ml-3 text-[11px] font-semibold text-slate-500">{status}</span>
+                </div>
+              );
+            })}
+          </nav>
+          <div className="flex items-center gap-2 whitespace-nowrap">
+            <span className="rounded-full border border-emerald-100 bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">
+              sid cookie present
+            </span>
+            <div className="flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-white text-sm font-semibold text-slate-600">
+              U
             </div>
           </div>
         </div>
+      </header>
 
-        <div className={tab === "preview" ? "block" : "hidden"}>
-          <div className="rounded-xl border border-slate-200 bg-white p-0 shadow-sm">
-            <iframe
-              title="Preview"
-              className="h-[60vh] w-full rounded-xl"
-              sandbox=""
-              srcDoc={`<!doctype html><html><head><meta charset=\"utf-8\"><meta http-equiv=\"Content-Security-Policy\" content=\"default-src 'none'; img-src 'self' data: blob:; style-src 'unsafe-inline'; font-src 'none'; connect-src 'none'; script-src 'none'; base-uri 'none'; object-src 'none'\"><style>html,body{background:#fff;color:#0f172a;font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,Noto Sans,sans-serif;line-height:1.6;margin:0;padding:24px;}h1,h2,h3,h4,h5,h6{margin:1em 0 0.5em;}p{margin:0 0 0.8em;}</style></head><body>${markdownToHtml(
-                docContent || "(empty)"
-              )}</body></html>`}
-            />
-          </div>
-        </div>
+      <div className="flex flex-1">
+        <aside className="w-[300px] border-r border-slate-200 bg-slate-50 px-6 py-8">
+          <h2 className="text-xs font-semibold uppercase tracking-[0.3em] text-slate-500">Documents</h2>
+          <ul className="mt-4 space-y-3">
+            {allowedDocs.map((name) => {
+              const status = docStatusFor(name);
+              const isSelected = selectedDoc === name;
+              return (
+                <li
+                  key={name}
+                  className={`rounded-2xl border p-4 text-sm shadow-sm ${
+                    isSelected ? "border-blue-500 bg-white" : "border-slate-200 bg-white"
+                  }`}
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <button
+                      className="truncate text-left font-semibold text-slate-900 hover:text-blue-600"
+                      onClick={() => setSelectedDoc(name)}
+                    >
+                      {name}
+                    </button>
+                    <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${badgeTone[status]}`}>{status}</span>
+                  </div>
+                  <div className="mt-3 flex items-center gap-3 text-xs font-medium text-blue-600">
+                    <button onClick={() => setSelectedDoc(name)} className="hover:underline">
+                      Edit
+                    </button>
+                    <button onClick={() => handleCopy(name)} className="hover:underline">
+                      Copy
+                    </button>
+                    <button onClick={() => downloadDoc(name)} className="hover:underline">
+                      Download
+                    </button>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+          <p className="mt-6 text-xs text-slate-500">Only current and prior stage docs are visible.</p>
+        </aside>
 
-        <div className={tab === "chat" ? "block" : "hidden"}>
-          <ChatPanel stage={session.current_stage} />
-        </div>
-      </section>
+        <main className="flex flex-1 flex-col gap-6 bg-slate-50 px-8 py-8">
+          <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+            <div className="flex flex-wrap items-start justify-between gap-4 pb-4">
+              <div>
+                <h1 className="text-2xl font-semibold text-slate-900">Stage: {stageLabel}</h1>
+              </div>
+              <div className="flex items-center gap-3">
+                <span className={`rounded-full px-3 py-1 text-xs font-semibold ${badgeTone[stageStatus]}`}>{stageStatus}</span>
+                <button
+                  disabled={stageStatus === "Draft"}
+                  onClick={approveStage}
+                  className="rounded-lg bg-slate-700 px-5 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300"
+                >
+                  Approve Stage
+                </button>
+              </div>
+            </div>
+            <div className="mt-4 space-y-4">
+              <ChatPanel stage={session.current_stage} className="" />
+              <div className="rounded-2xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm text-blue-900">
+                💡 Ask one question at a time; stop when essentials are filled.
+              </div>
+            </div>
+          </section>
+
+          <section className="rounded-3xl border border-slate-200 bg-white shadow-sm">
+            <div className="flex flex-wrap items-center gap-4 border-b border-slate-100 px-6 py-4">
+              <div>
+                <p className="text-xs uppercase tracking-[0.2em] text-slate-500">Document</p>
+                <h3 className="text-lg font-semibold text-slate-900">
+                  {selectedDoc ?? "Select a document to start writing"}
+                </h3>
+              </div>
+              {selectedDoc ? (
+                <>
+                  <div className="ml-auto flex items-center gap-2 rounded-full bg-slate-100 p-1 text-sm">
+                    <button
+                      onClick={() => setDocView("preview")}
+                      data-testid="doc-tab-preview"
+                      className={`rounded-full px-3 py-1 font-medium ${
+                        docView === "preview" ? "bg-white shadow" : "text-slate-500"
+                      }`}
+                    >
+                      Preview
+                    </button>
+                    <button
+                      onClick={() => setDocView("edit")}
+                      data-testid="doc-tab-edit"
+                      className={`rounded-full px-3 py-1 font-medium ${
+                        docView === "edit" ? "bg-white shadow" : "text-slate-500"
+                      }`}
+                    >
+                      Edit
+                    </button>
+                  </div>
+                  <div className="flex items-center gap-3 text-xs font-semibold text-blue-600">
+                    <button onClick={() => handleCopy(selectedDoc)} className="hover:underline">
+                      Copy
+                    </button>
+                    <span className="text-slate-300">•</span>
+                    <button onClick={() => downloadDoc(selectedDoc)} className="hover:underline">
+                      Download
+                    </button>
+                  </div>
+                </>
+              ) : null}
+            </div>
+            <div className="px-6 py-6">
+              {!selectedDoc ? (
+                <p className="text-sm text-slate-500">Choose a document from the left rail to view or edit.</p>
+              ) : docView === "edit" ? (
+                <>
+                  <MarkdownEditor
+                    value={docContent}
+                    onChange={setDocContent}
+                    onSave={saveDoc}
+                    saving={saving}
+                    locked={docLocked}
+                  />
+                </>
+              ) : (
+                <MarkdownPreview content={docContent || ""} className="p-6" />
+              )}
+            </div>
+          </section>
+        </main>
+      </div>
     </div>
   );
 }

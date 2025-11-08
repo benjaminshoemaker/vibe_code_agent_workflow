@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { Route } from "next";
+import StartSessionButton from "../components/StartSessionButton";
 
 const STAGES = [
   "intake",
@@ -66,12 +67,7 @@ export default function HomePage() {
             documentation ready for AI agents and development teams.
           </p>
           <div className="mt-8 flex flex-col items-center justify-center gap-4 sm:flex-row">
-            <Link
-              href={"/app" as Route}
-              className="inline-flex w-full items-center justify-center rounded-full bg-blue-600 px-6 py-3 text-base font-medium text-white shadow-sm transition hover:bg-blue-500 sm:w-auto"
-            >
-              Start new session
-            </Link>
+            <StartSessionButton />
             <Link
               href={"/app?resume=1" as Route}
               className="inline-flex w-full items-center justify-center rounded-full border border-slate-300 px-6 py-3 text-base font-medium text-slate-700 transition hover:bg-slate-50 sm:w-auto"
