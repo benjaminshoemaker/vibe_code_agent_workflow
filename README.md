@@ -63,6 +63,7 @@ Additional helpers:
 | 12 — Landing page | Public landing now includes hero CTA buttons, stage strip, doc snippets, and a security note for quick orientation. |
 | 13 — App shell with constrained left rail | Authenticated workspace now mirrors the intake design with staged chips, constrained doc rail, and disabled Approve controls until validators pass. |
 | 14 — Markdown editor & sandboxed preview | Doc editor adds Save + inline CTA on 409, while the Preview tab now renders via a sandboxed iframe that enforces the Markdown CSP and blocks remote/javascript images. |
+| 15 — ChatKit UI | Chat now uses ChatKit’s message list/composer with role badges, typing indicator, and stage-aware styling; landing “Start new session” flows reset the chat alongside docs. |
 
 ## Deployment flow
 

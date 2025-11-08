@@ -449,9 +449,9 @@ ChatKit components wired.
 Renders roles; sends message.
 
 **TODO**
-- [ ] Install ChatKit
-- [ ] Replace custom chat panel
-- [ ] Tests
+- [x] Install ChatKit
+- [x] Replace custom chat panel
+- [x] Tests
 
 ---
 
@@ -710,7 +710,7 @@ All acceptance criteria pass.
 - [ ] Export ZIP contains docs, `/designs/`, and `manifest.json` with sha256  
 - [ ] Security headers and sandbox in place  
 - [ ] Rate limits enforced and SSE errors normalized (incl. 499)  
-- [ ] Re‑ingest triggers at stage start, pre‑validate, and on doc save/upload  
-- [ ] **ChatKit UI** in place for chat  
+- [ ] Re-ingest triggers at stage start, pre-validate, and on doc save/upload  
+- [x] **ChatKit UI** in place for chat  
 - [ ] **LLM budgets** (≤4 total calls per stage) and default model configured  
-- [ ] **30‑day chat retention** enforced
+- [ ] **30-day chat retention** enforced
