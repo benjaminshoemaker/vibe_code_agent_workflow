@@ -38,7 +38,7 @@ test("app shell renders with left rail and approve disabled", async ({ page }) =
   });
   expect(status).toBe(201);
   await page.reload();
-  const res2 = await page.request.get('/app');
+  const res2 = await page.request.get('/api/session');
   expect(res2.status()).toBe(200);
 });
 
