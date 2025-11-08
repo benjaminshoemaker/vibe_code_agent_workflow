@@ -65,6 +65,7 @@ Additional helpers:
 | 14 — Markdown editor & sandboxed preview | Doc editor adds Save + inline CTA on 409, while the Preview tab now renders via a sandboxed iframe that enforces the Markdown CSP and blocks remote/javascript images. |
 | 15 — ChatKit UI | Chat now uses ChatKit’s message list/composer with role badges, typing indicator, and stage-aware styling; landing “Start new session” flows reset the chat alongside docs. |
 | 16 — Streaming client | `/lib/stream.ts` now drives POST-based SSE with reconnection, so chat handles assistant deltas, doc.updated refreshes, stage.ready enablement, and stage.needs_more notices in real time. |
+| 17 — Stage writers | Orchestrated stages now write `idea.md → idea_one_pager.md → spec.md → prompt_plan.md → AGENTS.md`, emitting `doc.updated` events so the UI refreshes as documents evolve. |
 
 ## Deployment flow
 
