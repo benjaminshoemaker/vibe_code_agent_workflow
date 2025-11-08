@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
+import ChatPanel from "./ChatPanel";
 
 type SessionResponse = {
   current_stage: "intake" | "one_pager" | "spec" | "design" | "prompt_plan" | "agents" | "export";
@@ -68,7 +69,7 @@ export default function Shell() {
   const [session, setSession] = useState<SessionResponse | null>(null);
   const [selectedDoc, setSelectedDoc] = useState<DocName | null>(null);
   const [docContent, setDocContent] = useState<string>("");
-  const [tab, setTab] = useState<"edit" | "preview">("edit");
+  const [tab, setTab] = useState<"edit" | "preview" | "chat">("edit");
   const [saving, setSaving] = useState(false);
   const [locked, setLocked] = useState(false);
 
@@ -243,38 +244,45 @@ export default function Shell() {
           >
             Edit
           </button>
+          <button
+            onClick={() => setTab("chat")}
+            className={`px-3 py-2 text-sm ${tab === "chat" ? "border-b-2 border-blue-600 font-medium" : "text-slate-600"}`}
+          >
+            Chat
+          </button>
+          <div className="ml-auto text-xs text-slate-500">Stage: {session.current_stage}</div>
         </div>
 
         {/* Content */}
-        {tab === "edit" ? (
-          <div className="flex flex-1 flex-col gap-3">
-            {locked && (
-              <div className="rounded border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
-                This document is approved. Start a new session to make further changes.
-              </div>
-            )}
-            <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-              <h3 className="mb-2 text-sm font-semibold text-slate-700">
-                {selectedDoc ?? "(no document selected)"}
-              </h3>
-              <textarea
-                value={docContent}
-                onChange={(e) => setDocContent(e.target.value)}
-                className="h-64 w-full resize-vertical rounded border border-slate-300 p-3 font-mono text-sm text-slate-800 outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="Start typing..."
-              />
-              <div className="mt-3 flex justify-end">
-                <button
-                  onClick={saveDoc}
-                  disabled={saving}
-                  className="rounded bg-blue-600 px-4 py-2 text-sm font-medium text-white disabled:cursor-not-allowed disabled:bg-slate-300"
-                >
-                  {saving ? "Saving..." : "Save"}
-                </button>
-              </div>
+        <div className={tab === "edit" ? "flex flex-1 flex-col gap-3" : "hidden"}>
+          {locked && (
+            <div className="rounded border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
+              This document is approved. Start a new session to make further changes.
+            </div>
+          )}
+          <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+            <h3 className="mb-2 text-sm font-semibold text-slate-700">
+              {selectedDoc ?? "(no document selected)"}
+            </h3>
+            <textarea
+              value={docContent}
+              onChange={(e) => setDocContent(e.target.value)}
+              className="h-64 w-full resize-vertical rounded border border-slate-300 p-3 font-mono text-sm text-slate-800 outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="Start typing..."
+            />
+            <div className="mt-3 flex justify-end">
+              <button
+                onClick={saveDoc}
+                disabled={saving}
+                className="rounded bg-blue-600 px-4 py-2 text-sm font-medium text-white disabled:cursor-not-allowed disabled:bg-slate-300"
+              >
+                {saving ? "Saving..." : "Save"}
+              </button>
             </div>
           </div>
-        ) : (
+        </div>
+
+        <div className={tab === "preview" ? "block" : "hidden"}>
           <div className="rounded-xl border border-slate-200 bg-white p-0 shadow-sm">
             <iframe
               title="Preview"
@@ -285,7 +293,11 @@ export default function Shell() {
               )}</body></html>`}
             />
           </div>
-        )}
+        </div>
+
+        <div className={tab === "chat" ? "block" : "hidden"}>
+          <ChatPanel stage={session.current_stage} />
+        </div>
       </section>
     </div>
   );

@@ -38,8 +38,8 @@ test("app shell renders with left rail and approve disabled", async ({ page }) =
   });
   expect(status).toBe(201);
   await page.reload();
-  const res2 = await page.request.get('/api/session');
-  expect(res2.status()).toBe(200);
+  const status2 = await page.evaluate(async () => (await fetch('/api/session')).status);
+  expect(status2).toBe(200);
 });
 
 test("security headers are present on web and api responses", async ({ page, request }) => {
