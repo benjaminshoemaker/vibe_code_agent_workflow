@@ -67,6 +67,7 @@ Additional helpers:
 | 16 — Streaming client | `/lib/stream.ts` now drives POST-based SSE with reconnection, so chat handles assistant deltas, doc.updated refreshes, stage.ready enablement, and stage.needs_more notices in real time. |
 | 17 — Stage writers | Orchestrated stages now write `idea.md → idea_one_pager.md → spec.md → prompt_plan.md → AGENTS.md`, emitting `doc.updated` events so the UI refreshes as documents evolve. |
 | 18 — Approvals + SSE bridge | Approve now re-ingests and validates before advancing; `/api/chat` also forwards `doc.updated` and `stage.ready` so the UI refreshes docs and enables Approve without polling. |
+| 19 — Design stage UI | Design stage adds a ZIP dropzone with replace banner and a designs table; Approve is gated on a non-empty index and stage.ready. E2E covers upload, gating, and advance. |
 
 ## Deployment flow
 

@@ -34,9 +34,14 @@ class DesignUploadError extends Error {
 
 const designsRoutes: FastifyPluginCallback = (app, _opts, done) => {
   if (!app.hasContentTypeParser("application/zip")) {
-    app.addContentTypeParser("application/zip", { parseAs: "buffer" }, (_req, body, parseDone) => {
+    // Allow ZIP uploads up to MAX_ZIP_BYTES at the parser level to avoid Fastify's default 1MB limit.
+    app.addContentTypeParser(
+      "application/zip",
+      { parseAs: "buffer", bodyLimit: MAX_ZIP_BYTES },
+      (_req, body, parseDone) => {
       parseDone(null, body as Buffer);
-    });
+      }
+    );
   }
 
   app.get("/api/designs/index", async (request, reply) => {
