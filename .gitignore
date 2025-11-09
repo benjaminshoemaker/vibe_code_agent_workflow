@@ -17,6 +17,9 @@ dist
 out
 coverage
 .tmp
+test-results
+playwright-report
+blob-report
 
 # Env files
 .env
@@ -27,3 +30,5 @@ coverage
 .DS_Store
 *.zip
 manual_testing/verification_samples/
+.pnpm-store
+cookies.txt

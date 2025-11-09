@@ -10,6 +10,7 @@ import docsRoutes from "./routes/api/docs";
 import stagesRoutes from "./routes/api/stages";
 import chatRoutes from "./routes/api/chat";
 import designsRoutes from "./routes/api/designs";
+import exportRoutes from "./routes/api/export";
 
 export type NextRequestHandler = ReturnType<NextServer["getRequestHandler"]>;
 
@@ -34,6 +35,7 @@ export function createApp({ nextHandler, dev }: CreateAppOptions): FastifyInstan
   app.register(docsRoutes);
   app.register(stagesRoutes);
   app.register(designsRoutes);
+  app.register(exportRoutes);
   app.register(chatRoutes);
 
   app.get("/api/health", async (_, reply) => {

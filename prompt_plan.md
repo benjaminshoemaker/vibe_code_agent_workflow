@@ -587,9 +587,10 @@ Tasks
 Integration: unzip and verify hashes. Unit: manifest determinism.
 
 **TODO**
-- [ ] zip-writer
-- [ ] export endpoint
-- [ ] Tests
+- [x] zip-writer
+- [x] export endpoint
+- [x] Tests
+- [x] Manual QA verified
 
 ---
 
