@@ -268,7 +268,7 @@ describe("intake readiness gating", () => {
 
       expect(response.body).toContain("event: doc.updated");
       expect(response.body).toContain("event: stage.ready");
-      expect(response.body).toContain("READY_TO_DRAFT");
+      expect(response.body).not.toContain("READY_TO_DRAFT");
     } finally {
       Reflect.set(process.env, "NODE_ENV", originalEnv);
     }

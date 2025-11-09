@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
-import { and, desc, eq } from "drizzle-orm";
+import { and, asc, desc, eq } from "drizzle-orm";
 import { db } from "../db/client";
 import {
   chatMessages,
@@ -10,6 +10,7 @@ import {
   type DocName,
   type StageName
 } from "../db/schema";
+import { generateResponse, type OpenAIResponseInput } from "../libs/openai";
 import type { StageDriverRunArgs, StageDriverResult } from "./types";
 
 type StageWriter = (args: StageDriverRunArgs) => Promise<StageDriverResult>;
@@ -50,8 +51,18 @@ export const stageWriters: Record<StageName, StageWriter> = {
 };
 
 async function runIntakeStage(args: StageDriverRunArgs): Promise<StageDriverResult> {
-  const source = await gatherIdeaSource(args.sessionId);
-  const content = buildIntakeDoc(source, args.sessionId);
+  const conversation = await fetchIntakeConversation(args.sessionId);
+  let content: string | undefined;
+
+  if (conversation.length > 0) {
+    content = await draftIdeaDocWithModel(conversation).catch(() => undefined);
+  }
+
+  if (!content) {
+    const insights = gatherIntakeInsights(conversation);
+    content = buildIntakeDoc(insights);
+  }
+
   await writeDoc(args.sessionId, "idea.md", content);
   emitDocUpdated(args.emit, "idea.md", content);
   emitDelta(args.emit, "Documented intake notes into idea.md.");
@@ -137,13 +148,274 @@ async function runAgentsStage(args: StageDriverRunArgs): Promise<StageDriverResu
   return ready();
 }
 
-async function gatherIdeaSource(sessionId: string) {
-  const latestUser = await db.query.chatMessages.findFirst({
-    where: and(eq(chatMessages.sessionId, sessionId), eq(chatMessages.role, "user" as ChatRole)),
-    orderBy: [desc(chatMessages.createdAt)]
-  });
+type IntakeSection = "Problem" | "Audience" | "Platform" | "Core Flow" | "MVP Features" | "Non-Goals";
 
-  return latestUser?.content ?? seedIdea;
+type IntakeInsights = {
+  summary: string;
+  sections: Record<IntakeSection, string>;
+};
+
+const intakeSectionOrder: IntakeSection[] = ["Problem", "Audience", "Platform", "Core Flow", "MVP Features", "Non-Goals"];
+
+const defaultSectionCopy: Record<IntakeSection, string> = {
+  Problem: "We still need to document the precise problem statement. Capture it during the next intake revision.",
+  Audience: "Outline the primary users in the next conversation so downstream docs remain grounded.",
+  Platform: "Primary experience runs on the web with responsive behavior for mobile devices.",
+  "Core Flow": "Detail the end-to-end experience so engineering and design can reason about state transitions.",
+  "MVP Features": "Focus on the smallest feature set that proves the concept across all seven stages.",
+  "Non-Goals": "Anything outside the seven-stage workflow is deferred for later releases."
+};
+
+const assistantTopicMatchers: Array<{ section: IntakeSection; patterns: RegExp[] }> = [
+  { section: "Problem", patterns: [/problem/i, /pain point/i, /core challenge/i] },
+  { section: "Audience", patterns: [/audience/i, /ideal user/i, /target users?/i] },
+  { section: "Platform", patterns: [/platform/i, /surface/i, /channels?/i] },
+  { section: "Core Flow", patterns: [/core flow/i, /journey/i, /steps/i] },
+  { section: "MVP Features", patterns: [/mvp/i, /must[-\s]?have/i, /features/i] },
+  { section: "Non-Goals", patterns: [/non-?goals?/i, /out of scope/i, /deferr(ed|ing)/i] }
+];
+
+async function draftIdeaDocWithModel(conversation: typeof chatMessages.$inferSelect[]) {
+  const transcript = formatTranscript(conversation);
+  if (!transcript) return undefined;
+
+  const input: OpenAIResponseInput = [
+    {
+      role: "system",
+      type: "message",
+      content: [
+        "You are a founding product lead who turns intake interviews into clear planning docs.",
+        "Produce Markdown for `idea.md` with these sections (in order):",
+        "## Summary",
+        "## Problem",
+        "## Audience",
+        "## Platform",
+        "## Core Flow",
+        "## MVP Features",
+        "## Non-Goals",
+        "",
+        "Write in the third person, synthesizing insights instead of quoting users verbatim.",
+        "If information is missing, write `TBD – what needs to be clarified` for that section.",
+        "Tone: confident, concise, and actionable.",
+        "Never mention chat logs, transcripts, or session IDs."
+      ].join("\n")
+    },
+    {
+      role: "user",
+      type: "message",
+      content: [
+        "Here is the intake transcript (ordered chronologically).",
+        "Summarize it into the required sections and output the complete Markdown document.",
+        "",
+        transcript
+      ].join("\n")
+    }
+  ];
+
+  const response = await generateResponse({ input });
+  const doc = collectResponseText(response)?.trim();
+  if (!doc) return undefined;
+  return ensureIdeaSections(doc);
+}
+
+const contentTopicMatchers: Array<{ section: IntakeSection; pattern: RegExp }> = [
+  { section: "Problem", pattern: /(problem|pain|challenge|struggle|issue)/i },
+  { section: "Audience", pattern: /(user|audience|customer|founder|team|marketer|student|developer)s?/i },
+  { section: "Platform", pattern: /(web app|mobile app|ios|android|slack|teams|cli|command line|browser extension|chrome extension|desktop app|pwa|responsive)/i },
+  { section: "Core Flow", pattern: /(flow|journey|steps|process|workflow)/i },
+  { section: "MVP Features", pattern: /(feature|capability|mvp|must-have|essentials|core module)/i },
+  { section: "Non-Goals", pattern: /(non-goal|out of scope|later phase|defer|not focusing)/i }
+];
+
+async function fetchIntakeConversation(sessionId: string) {
+  return db.query.chatMessages.findMany({
+    where: and(eq(chatMessages.sessionId, sessionId), eq(chatMessages.stage, "intake")),
+    orderBy: [asc(chatMessages.createdAt)],
+    limit: 200
+  });
+}
+
+function gatherIntakeInsights(conversation: typeof chatMessages.$inferSelect[]): IntakeInsights {
+  if (conversation.length === 0) {
+    return {
+      summary: seedIdea,
+      sections: { ...defaultSectionCopy }
+    };
+  }
+  return analyzeIntakeConversation(conversation);
+}
+
+function analyzeIntakeConversation(conversation: typeof chatMessages.$inferSelect[]): IntakeInsights {
+  const sectionDrafts: Partial<Record<IntakeSection, string>> = {};
+  const userNarrative: string[] = [];
+  let pendingTopic: IntakeSection | null = null;
+
+  for (const message of conversation) {
+    if (message.role === "assistant") {
+      const topic = detectTopicFromAssistant(message.content);
+      if (topic) {
+        pendingTopic = topic;
+      }
+      continue;
+    }
+
+    if (message.role !== "user") continue;
+
+    const cleaned = normalizeAnswer(message.content);
+    if (!cleaned) continue;
+    userNarrative.push(cleaned);
+
+    const topic = pendingTopic ?? detectTopicFromContent(cleaned, sectionDrafts);
+    if (topic) {
+      sectionDrafts[topic] = appendSectionParagraph(sectionDrafts[topic], cleaned);
+      pendingTopic = null;
+    }
+  }
+
+  const combinedNarrative = userNarrative.join(" ");
+  const summary = selectSummary(userNarrative) ?? seedIdea;
+  const sections = applySectionFallbacks(sectionDrafts, combinedNarrative);
+
+  return { summary, sections };
+}
+
+function normalizeAnswer(text: string) {
+  return text.replace(/^[>\s-]+/g, "").replace(/\s+/g, " ").trim();
+}
+
+function detectTopicFromAssistant(content: string): IntakeSection | null {
+  const lower = content.toLowerCase();
+  for (const matcher of assistantTopicMatchers) {
+    if (matcher.patterns.some((pattern) => pattern.test(lower))) {
+      return matcher.section;
+    }
+  }
+  return null;
+}
+
+function detectTopicFromContent(
+  content: string,
+  drafts: Partial<Record<IntakeSection, string>>
+): IntakeSection | null {
+  for (const matcher of contentTopicMatchers) {
+    if (!drafts[matcher.section] && matcher.pattern.test(content)) {
+      return matcher.section;
+    }
+  }
+  return null;
+}
+
+function appendSectionParagraph(existing: string | undefined, addition: string) {
+  if (!existing) return addition;
+  return `${existing}\n\n${addition}`;
+}
+
+function applySectionFallbacks(
+  drafts: Partial<Record<IntakeSection, string>>,
+  narrative: string
+): Record<IntakeSection, string> {
+  const resolved: Record<IntakeSection, string> = { ...defaultSectionCopy };
+  for (const section of intakeSectionOrder) {
+    const candidate = drafts[section]?.trim();
+    if (candidate && candidate.length > 0) {
+      resolved[section] = candidate;
+      continue;
+    }
+    if (section === "Platform") {
+      resolved.Platform = inferPlatformFromNarrative(narrative);
+    }
+  }
+  return resolved;
+}
+
+function inferPlatformFromNarrative(narrative: string) {
+  const text = narrative.toLowerCase();
+  if (!text) return defaultSectionCopy.Platform;
+  if (/(ios|android|native mobile)/.test(text)) {
+    return "Native mobile apps on iOS and Android with shared onboarding and notifications.";
+  }
+  if (/(slack|teams|discord)/.test(text)) {
+    return "Conversational surface delivered inside the team’s chat workspace (Slack/Teams).";
+  }
+  if (/(cli|command line|terminal)/.test(text)) {
+    return "Command-line interface that ships as an installable CLI for automation-first teams.";
+  }
+  if (/(browser extension|chrome extension)/.test(text)) {
+    return "Browser extension that augments the workflow directly inside the user’s current tab.";
+  }
+  if (/(desktop app|electron)/.test(text)) {
+    return "Desktop application with offline-first sync across Mac and Windows.";
+  }
+  if (/(mobile web|responsive|pwa)/.test(text)) {
+    return "Responsive web app that behaves well on mobile web/PWA contexts.";
+  }
+  return defaultSectionCopy.Platform;
+}
+
+function selectSummary(messages: string[]) {
+  if (messages.length === 0) {
+    return undefined;
+  }
+  const substantial = messages.find((entry) => entry.length >= 80);
+  return substantial ?? messages[0];
+}
+
+function formatTranscript(conversation: typeof chatMessages.$inferSelect[]) {
+  return conversation
+    .slice(-50)
+    .map((msg) => {
+      const role = msg.role.toUpperCase();
+      const content = msg.content.replace(/\s+/g, " ").trim();
+      return `${role}: ${content}`;
+    })
+    .join("\n");
+}
+
+function collectResponseText(response: any) {
+  const chunks: string[] = [];
+  for (const output of response?.output ?? []) {
+    if (output?.type === "message" && output?.message?.content) {
+      for (const segment of output.message.content) {
+        const text = extractTextField(segment);
+        if (text) chunks.push(text);
+      }
+    } else if (output?.role === "assistant" && Array.isArray(output?.content)) {
+      for (const segment of output.content) {
+        const text = extractTextField(segment);
+        if (text) chunks.push(text);
+      }
+    }
+  }
+  if (chunks.length === 0 && Array.isArray(response?.output_text)) {
+    return response.output_text.filter((text: unknown) => typeof text === "string").join("\n");
+  }
+  return chunks.join("");
+}
+
+function extractTextField(segment: any) {
+  if (!segment) return "";
+  if (typeof segment === "string") return segment;
+  if (typeof segment.text === "string") return segment.text;
+  if (Array.isArray(segment.text)) {
+    return segment.text.filter((part: unknown) => typeof part === "string").join("");
+  }
+  if (typeof segment.value === "string") return segment.value;
+  return "";
+}
+
+function ensureIdeaSections(content: string) {
+  let result = content.trim();
+  if (!/^#\s+/m.test(result)) {
+    result = `# Idea Overview\n\n${result}`;
+  }
+  const required = ["Summary", "Problem", "Audience", "Platform", "Core Flow", "MVP Features", "Non-Goals"];
+  for (const heading of required) {
+    const pattern = new RegExp(`^##\\s+${heading}\\b`, "im");
+    if (!pattern.test(result)) {
+      result = `${result.trim()}\n\n## ${heading}\nTBD – add more detail here.\n`;
+    }
+  }
+  return result.trim() + "\n";
 }
 
 async function fetchDesignIndex(sessionId: string) {
@@ -157,31 +429,21 @@ async function fetchDesignIndex(sessionId: string) {
   return files.map((file) => `${file.path} (${file.size} bytes, ${file.contentType})`);
 }
 
-function buildIntakeDoc(source: string, sessionId: string) {
-  const condensed = condense(source);
-  const sectionText = (label: string) =>
-    `${condensed} (${label.toLowerCase()} focus for session ${sessionId}).`;
-
-  const sections = [
-    ["Problem", sectionText("Problem")],
-    ["Audience", sectionText("Audience")],
-    ["Platform", "Primary experience runs on the web with responsive behavior for mobile devices."],
-    ["Core Flow", sectionText("Core Flow")],
-    ["MVP Features", "Chat-guided plan, inline docs, and a resumable export pipeline."],
-    ["Non-Goals", "Anything outside the seven-stage workflow is deferred for later releases."]
-  ];
-
-  const parts = [
+function buildIntakeDoc(insights: IntakeInsights) {
+  const parts: string[] = [
     "# Idea Overview",
-    `Session: ${sessionId}`,
     "",
     "## Summary",
-    condensed,
-    "",
-    ...sections.flatMap(([title, body]) => [`## ${title}`, body])
+    insights.summary.trim() || seedIdea,
+    ""
   ];
 
-  return parts.join("\n");
+  for (const section of intakeSectionOrder) {
+    const body = insights.sections[section]?.trim() || defaultSectionCopy[section];
+    parts.push(`## ${section}`, body, "");
+  }
+
+  return parts.join("\n").trim() + "\n";
 }
 
 function buildOnePagerDoc(sections: SectionMap) {
