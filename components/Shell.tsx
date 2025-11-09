@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import ChatPanel from "./ChatPanel";
+import DesignStage from "./DesignStage";
 import MarkdownEditor from "./MarkdownEditor";
 import MarkdownPreview from "./MarkdownPreview";
 
@@ -82,6 +83,13 @@ export default function Shell() {
   const [saving, setSaving] = useState(false);
   const [locked, setLocked] = useState(false);
   const [stageReadyOverrides, setStageReadyOverrides] = useState<Partial<Record<StageSlug, boolean>>>({});
+  const handleDesignIndexUpdate = useCallback((count: number) => {
+    setSession((prev) => {
+      if (!prev) return prev;
+      if (prev.designs_count === count) return prev;
+      return { ...prev, designs_count: count };
+    });
+  }, []);
 
   useEffect(() => {
     void fetch("/api/session", { credentials: "include" })
@@ -142,10 +150,18 @@ export default function Shell() {
     });
   }, [currentStage]);
 
-  const stageStatus: StageStatus = useMemo(
-    () => stageStatusFor(currentStage, session, stageReadyOverrides),
-    [currentStage, session, stageReadyOverrides]
-  );
+  const stageStatus: StageStatus = useMemo(() => {
+    let status = stageStatusFor(currentStage, session, stageReadyOverrides);
+    // Additional gate: Design stage requires non-empty /designs/ index before Ready
+    if (
+      currentStage === "design" &&
+      status === "Ready" &&
+      (session?.designs_count ?? 0) === 0
+    ) {
+      status = "Draft";
+    }
+    return status;
+  }, [currentStage, session, stageReadyOverrides]);
 
   const docStage = selectedDoc ? docStageMap[selectedDoc] : null;
   const docLocked = locked || (docStage ? Boolean(session?.approved[docStage]) : false);
@@ -351,6 +367,9 @@ export default function Shell() {
               <div className="rounded-2xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm text-blue-900">
                 💡 Ask one question at a time; stop when essentials are filled.
               </div>
+              {session.current_stage === "design" ? (
+                <DesignStage onIndexUpdate={handleDesignIndexUpdate} />
+              ) : null}
             </div>
           </section>
 

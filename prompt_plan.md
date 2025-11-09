@@ -538,7 +538,7 @@ Approve advances; invalid rejected with reasons.
 - [x] Wire re-ingest
 - [x] Update session flags
 - [x] Bridge orchestrator events into chat SSE
-- [ ] Tests
+- [x] Tests
 - [x] Manual QA verified
 
 ---
@@ -562,10 +562,10 @@ Uploader + index views.
 E2E: upload ZIP -> index -> next stage unblocked.
 
 **TODO**
-- [ ] Dropzone
-- [ ] Index table + thumbs
-- [ ] Gate logic
-- [ ] E2E
+- [x] Dropzone
+- [x] Index table + thumbs
+- [x] Gate logic
+- [x] E2E
 
 ---
 
