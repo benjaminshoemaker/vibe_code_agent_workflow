@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import ChatPanel from "./ChatPanel";
 import DesignStage from "./DesignStage";
+import ExportPanel from "./ExportPanel";
 import MarkdownEditor from "./MarkdownEditor";
 import MarkdownPreview from "./MarkdownPreview";
 
@@ -370,6 +371,7 @@ export default function Shell() {
               {session.current_stage === "design" ? (
                 <DesignStage onIndexUpdate={handleDesignIndexUpdate} />
               ) : null}
+              {session.current_stage === "export" ? <ExportPanel /> : null}
             </div>
           </section>
 

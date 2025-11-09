@@ -612,9 +612,10 @@ Export page/section with manifest viewer.
 E2E: manifest renders; download produces correct zip.
 
 **TODO**
-- [ ] Manifest view
-- [ ] Download button
-- [ ] E2E
+- [x] Manifest view
+- [x] Download button
+- [x] E2E
+- [x] Manual QA verified
 
 ---
 
