@@ -518,6 +518,7 @@ Integration: intake → one_pager → spec produces non-empty docs.
 - [x] doc.updated emits
 - [x] Tests
 - [x] Manual QA verified
+- [x] Intake writer now summarizes the full interview (Problem/Audience/Platform/Core Flow/MVP) instead of echoing the last reply when drafting `idea.md`
 
 ---
 

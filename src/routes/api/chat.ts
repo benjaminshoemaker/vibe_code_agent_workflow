@@ -245,8 +245,9 @@ const chatRoutes: FastifyPluginCallback = (app, _opts, done) => {
         const segments = extractAssistantSegments(output);
         for (const segment of segments) {
           assistantTranscript += segment;
-          if (!reply.raw.closed) {
-            reply.raw.write(formatEvent("assistant.delta", segment));
+          const outbound = stripReadyFlag(segment);
+          if (!reply.raw.closed && outbound) {
+            reply.raw.write(formatEvent("assistant.delta", outbound));
           }
         }
       }
@@ -255,8 +256,9 @@ const chatRoutes: FastifyPluginCallback = (app, _opts, done) => {
         const fallbackSegments = extractOutputTextSegments(response);
         for (const segment of fallbackSegments) {
           assistantTranscript += segment;
-          if (!reply.raw.closed) {
-            reply.raw.write(formatEvent("assistant.delta", segment));
+          const outbound = stripReadyFlag(segment);
+          if (!reply.raw.closed && outbound) {
+            reply.raw.write(formatEvent("assistant.delta", outbound));
           }
         }
       }
@@ -375,6 +377,14 @@ function containsReadyFlag(text: string) {
   return text
     .split(/\r?\n/)
     .some((line) => line.trim() === READY_TO_DRAFT_FLAG);
+}
+
+function stripReadyFlag(text: string) {
+  const lines = text.split(/\r?\n/).filter((line) => line.trim() !== READY_TO_DRAFT_FLAG);
+  if (lines.length === 0) {
+    return "";
+  }
+  return lines.join("\n");
 }
 
 function extractOutputTextSegments(response: any) {

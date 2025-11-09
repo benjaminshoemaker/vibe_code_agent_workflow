@@ -72,7 +72,7 @@ Additional helpers:
 | 21 — Export UI | Export stage shows a server-generated manifest preview and a Download Zip button that calls `/api/export/zip`. E2E covers preview rendering and successful download. |
 | 22 — Rate limits + errors | Added in‑memory rate limits (now `/api/chat` 30/min 300/hr with one concurrent stream, `/api/designs/upload` 3/hr, `/api/export/zip` 10/hr) plus centralized error mapping incl. 429 and SSE 499. |
 | 24 — E2E happy path | New Playwright scenario covers Intake→Export approvals, verifies doc lock CTA after approval, and inspects the export ZIP manifest + designs for sha256 integrity. |
-| 25 — Intake chat gating | Intake chat now saves your prompts, interviews you one question at a time, falls back gracefully when OpenAI omits message chunks, and only enables Approve once the assistant emits `READY_TO_DRAFT`, so `idea.md` reflects your latest input. Multi-line assistant replies now stream in full without truncation. |
+| 25 — Intake chat gating | Intake chat now saves your prompts, interviews you one question at a time, falls back gracefully when OpenAI omits message chunks, and only enables Approve once the assistant emits `READY_TO_DRAFT`, so `idea.md` reflects your latest input. The intake writer now synthesizes the full interview (Problem, Audience, Platform, Core Flow, MVP) instead of echoing the last response, and multi-line assistant replies stream in full without truncation. |
 
 ## Deployment flow
 
