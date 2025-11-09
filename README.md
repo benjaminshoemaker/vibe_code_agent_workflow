@@ -71,6 +71,7 @@ Additional helpers:
 | 20 — Export API | `/api/export/zip` streams a flat ZIP (`idea.md`, `idea_one_pager.md`, `spec.md`, `prompt_plan.md`, `AGENTS.md`, `/designs/*`, and `manifest.json` with sha256 and replace_on_upload). |
 | 21 — Export UI | Export stage shows a server-generated manifest preview and a Download Zip button that calls `/api/export/zip`. E2E covers preview rendering and successful download. |
 | 22 — Rate limits + errors | Added in‑memory rate limits: `/api/chat` 5/min 60/hr with one concurrent stream, `/api/designs/upload` 3/hr, `/api/export/zip` 10/hr; centralized error mapping incl. 429 and SSE 499. |
+| 24 — E2E happy path | New Playwright scenario covers Intake→Export approvals, verifies doc lock CTA after approval, and inspects the export ZIP manifest + designs for sha256 integrity. |
 
 ## Deployment flow
 

@@ -35,6 +35,12 @@ Strip macOS metadata directories (`__MACOSX/`) and `._*` resource-fork files fro
 - After a plan step is finished, document its completion state with a short checklist. Include: step name/number, test command/results, `prompt_plan.md` status, manual checks performed (mark as ✅ only after the human confirms they ran to their satisfaction), release notes status, and an inline commit summary string the human can copy/paste.
 - The human handles `git add`, `git commit`, and `git push`; do not run those commands yourself.
 
+### Deferred-work notation
+- When a task is intentionally paused, keep its checkbox unchecked and prepend `(Deferred)` to the TODO label in `prompt_plan.md`, followed by a short reason.  
+- Apply the same `(Deferred)` tag to every downstream checklist item that depends on the paused work.
+- Remove the tag only after the work resumes; this keeps the outstanding scope visible without implying completion.
+- Current example: Step 23 (**Chat retention TTL**) and its dependent retention checklist items are marked as `(Deferred)` until reinstated.
+
 ## Guardrails for agents
 - Make the smallest change that passes tests and improves the code.
 - Do not introduce new public APIs without updating `spec.md` and relevant tests.

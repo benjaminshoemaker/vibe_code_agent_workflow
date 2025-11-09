@@ -80,7 +80,7 @@ PRIMARY KEY(session_id, path)
 
 ### 3.2 Session model
 - **Cookie:** `sid` httpOnly, Secure, SameSite=Lax, Path=/, host‑only domain, rolling TTL 30 days.
-- **Persistence:** autosave after each chat, doc save, ZIP upload. Chat retained 30 days.
+- **Persistence:** autosave after each chat, doc save, ZIP upload. Chat retention target is 30 days, but enforcement/purge logic is deferred (see §13).
 
 ### 3.3 Documents
 - Names: `idea.md`, `idea_one_pager.md`, `spec.md`, `prompt_plan.md`, `AGENTS.md`.
@@ -349,5 +349,6 @@ See §7.2.
 
 ---
 
-## 
+## 13. Deferred work
 
+- **Step 23 — Chat retention TTL:** Per user request, purge-on-read and the opt-in daily job that enforces the 30-day retention window are deferred. Corresponding TODOs in `prompt_plan.md` and downstream checklist items are tagged with `(Deferred)` until this work is re-enabled.

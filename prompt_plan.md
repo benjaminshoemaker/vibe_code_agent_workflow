@@ -7,7 +7,7 @@ This plan breaks the MVP into small, testable steps. Each step includes a runnab
 - Single origin: one Node process hosts Fastify APIs and Next handler. SSE stays same‑origin.
 - Env: `OPENAI_API_KEY` (required), `OPENAI_API_BASE` (optional), `OPENAI_MODEL` (optional, default `gpt-4o-mini`). Temps: gen 0.2, val 0.0. Timeout: 20s.
 - Cookies: `sid` httpOnly, Secure, SameSite=Lax, Path=/, **host‑only domain** (no Domain attribute), rolling TTL 30 days.
-- Chat retention: purge messages older than 30 days.
+- Chat retention: purge messages older than 30 days. (Deferred — see Step 23.)
 - Markdown images: `img-src 'self' data: blob:`. No remote images. Render in sandboxed iframe with meta‑CSP.
 - Re‑ingest policy: at **stage start**, **right before validation**, and **after any doc save or designs upload**.
 - LLM budgets: **≤4 total LLM calls per stage** (combined generation + validation); on exceed emit `stage.needs_more`.
@@ -664,10 +664,13 @@ Purge utilities; scheduled job.
 **Tests**  
 Retention removes aged rows; idempotent.
 
+**Status**  
+Deferred per user request (skip Step 23 for now). Tasks remain queued with the `(Deferred)` tag until re‑enabled; downstream dependencies share the same label.
+
 **TODO**
-- [ ] Purge on session load
-- [ ] Daily job
-- [ ] Tests
+- [ ] (Deferred) Purge on session load — blocked until Step 23 resumes.
+- [ ] (Deferred) Daily job — blocked until Step 23 resumes.
+- [ ] (Deferred) Tests — blocked until Step 23 resumes.
 
 ---
 
@@ -699,10 +702,10 @@ Acceptance
 All acceptance criteria pass.
 
 **TODO**
-- [ ] Fixtures
-- [ ] Happy-path test
-- [ ] Stabilize SSE waits
-- [ ] Finalize unit/integration coverage
+- [x] Fixtures
+- [x] Happy-path test
+- [x] Stabilize SSE waits
+- [x] Finalize unit/integration coverage
 
 ---
 
@@ -720,4 +723,4 @@ All acceptance criteria pass.
 - [ ] Re-ingest triggers at stage start, pre-validate, and on doc save/upload  
 - [x] **ChatKit UI** in place for chat  
 - [ ] **LLM budgets** (≤4 total calls per stage) and default model configured  
-- [ ] **30-day chat retention** enforced
+- [ ] (Deferred) **30-day chat retention** enforced — blocked by Step 23 deferral
