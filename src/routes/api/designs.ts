@@ -72,6 +72,11 @@ const designsRoutes: FastifyPluginCallback = (app, _opts, done) => {
       return reply.code(401).send({ error: "SESSION_NOT_FOUND" });
     }
 
+    const limit = app.rateLimiter.check(sessionId, "designs:hour", 3, 3_600_000);
+    if (!limit.ok) {
+      return reply.code(429).header("Retry-After", String(limit.retryAfterSec)).send({ error: "RATE_LIMIT_EXCEEDED" });
+    }
+
     if (request.headers["content-type"] !== "application/zip") {
       return reply.code(415).send({ error: "UNSUPPORTED_MEDIA_TYPE" });
     }

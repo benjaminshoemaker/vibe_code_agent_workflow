@@ -639,9 +639,10 @@ Tasks
 429 with retry-after; mapping assertions including 499.
 
 **TODO**
-- [ ] Limiter
-- [ ] Error handler
-- [ ] Tests
+ - [x] Limiter
+ - [x] Error handler
+ - [x] Tests
+ - [x] Manual QA verified
 
 ---
 

@@ -15,6 +15,9 @@ const errorHandlerPlugin: FastifyPluginCallback = (app, _opts, done) => {
       else if (statusCode === 404) code = "NOT_FOUND";
       else if (statusCode === 413) code = "PAYLOAD_TOO_LARGE";
       else if (statusCode === 415) code = "UNSUPPORTED_MEDIA_TYPE";
+      else if (statusCode === 409) code = "CONFLICT";
+      else if (statusCode === 422) code = "UNPROCESSABLE_ENTITY";
+      else if (statusCode === 429) code = "TOO_MANY_REQUESTS";
       reply.status(statusCode).send({ error: code });
       return;
     }
