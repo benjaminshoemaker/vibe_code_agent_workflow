@@ -18,10 +18,39 @@ type NeedsMorePayload = {
 export const CHAT_KEEPALIVE_MS = 15_000;
 
 const chatRoutes: FastifyPluginCallback = (app, _opts, done) => {
+  // Pre-lock concurrent chat streams as early as possible in the lifecycle
+  app.addHook("onRequest", (request, reply, next) => {
+    const url = request.raw.url || request.url || "";
+    if (request.method !== "POST" || !url.startsWith("/api/chat")) return next();
+    const sessionId = request.cookies[SESSION_COOKIE_NAME];
+    if (!sessionId) return next();
+    if (!app.rateLimiter.acquireChat(sessionId)) {
+      reply.code(429).header("Retry-After", "1").send({ error: "CHAT_STREAM_ACTIVE" });
+      return;
+    }
+    (request as any).chatLockAcquired = true;
+    next();
+  });
   app.post<{ Body: ChatRequestBody }>("/api/chat", async (request, reply) => {
     const sessionId = request.cookies[SESSION_COOKIE_NAME];
     if (!sessionId) {
       return reply.code(401).send({ error: "SESSION_NOT_FOUND" });
+    }
+
+    // Rate limit: 5/min, 60/hour per sid; enforce one concurrent stream
+    const minute = app.rateLimiter.check(sessionId, "chat:minute", 5, 60_000);
+    if (!minute.ok) {
+      return reply.code(429).header("Retry-After", String(minute.retryAfterSec)).send({ error: "RATE_LIMIT_EXCEEDED" });
+    }
+    const hour = app.rateLimiter.check(sessionId, "chat:hour", 60, 3_600_000);
+    if (!hour.ok) {
+      return reply.code(429).header("Retry-After", String(hour.retryAfterSec)).send({ error: "RATE_LIMIT_EXCEEDED" });
+    }
+    if (!(request as any).chatLockAcquired) {
+      if (!app.rateLimiter.acquireChat(sessionId)) {
+        return reply.code(429).header("Retry-After", "1").send({ error: "CHAT_STREAM_ACTIVE" });
+      }
+      (request as any).chatLockAcquired = true;
     }
 
     reply.hijack();
@@ -51,6 +80,7 @@ const chatRoutes: FastifyPluginCallback = (app, _opts, done) => {
       if (!reply.raw.closed) {
         reply.raw.end();
       }
+      app.rateLimiter.releaseChat(sessionId);
     };
 
     const sendNeedsMore = (payload: NeedsMorePayload) => {

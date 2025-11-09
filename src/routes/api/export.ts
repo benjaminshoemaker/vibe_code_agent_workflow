@@ -31,6 +31,11 @@ const exportRoutes: FastifyPluginCallback = (app, _opts, done) => {
       return reply.code(401).send({ error: "SESSION_NOT_FOUND" });
     }
 
+    const limit = app.rateLimiter.check(sessionId, "export:hour", 10, 3_600_000);
+    if (!limit.ok) {
+      return reply.code(429).header("Retry-After", String(limit.retryAfterSec)).send({ error: "RATE_LIMIT_EXCEEDED" });
+    }
+
     const [docRows, designRows] = await Promise.all([
       db.query.docs.findMany({ where: eq(docs.sessionId, sessionId), columns: { name: true, content: true } }),
       db.query.designs.findMany({

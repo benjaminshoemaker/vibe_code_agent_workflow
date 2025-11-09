@@ -129,6 +129,27 @@ describe("/api/chat SSE", () => {
     expect(response.statusCode).toBe(200);
     expect(response.body).toBe(":keepalive\n\n");
   });
+
+  it("limits one concurrent chat stream per sid", async () => {
+    const cookie = await createSession();
+    // Extract sid from Set-Cookie header to pre-acquire chat lock
+    const m = /sid=([^;]+)/.exec(cookie as string);
+    expect(m).not.toBeNull();
+    const sid = m![1];
+    // Manually acquire lock to simulate an active stream
+    expect(app.rateLimiter.acquireChat(sid)).toBe(true);
+
+    const blocked = await app.inject({
+      method: "POST",
+      url: "/api/chat",
+      headers: { cookie },
+      payload: { message: "again", stage: "intake" }
+    });
+    expect(blocked.statusCode).toBe(429);
+
+    // Release lock for hygiene
+    app.rateLimiter.releaseChat(sid);
+  });
 });
 
 describe("stream lifecycle", () => {

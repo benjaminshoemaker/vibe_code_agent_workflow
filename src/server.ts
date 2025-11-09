@@ -5,6 +5,7 @@ import type { NextServer } from "next/dist/server/next";
 import { env } from "./env";
 import securityHeadersPlugin from "./plugins/security";
 import errorHandlerPlugin from "./plugins/error-handler";
+import rateLimitPlugin from "./plugins/rate-limit";
 import sessionRoutes from "./routes/api/session";
 import docsRoutes from "./routes/api/docs";
 import stagesRoutes from "./routes/api/stages";
@@ -31,6 +32,7 @@ export function createApp({ nextHandler, dev }: CreateAppOptions): FastifyInstan
   app.register(fastifyCookie);
   app.register(securityHeadersPlugin);
   app.register(errorHandlerPlugin);
+  app.register(rateLimitPlugin);
   app.register(sessionRoutes);
   app.register(docsRoutes);
   app.register(stagesRoutes);
