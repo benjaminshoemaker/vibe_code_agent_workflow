@@ -108,7 +108,7 @@ PRIMARY KEY(session_id, path)
 - `GET /api/health` → `{ok:true}`.
 
 ### 4.2 Rate limits (per `sid`)
-- `/api/chat`: 5/min, 60/hour, 1 concurrent stream.
+- `/api/chat`: 30/min, 300/hour, 1 concurrent stream.
 - `/api/designs/upload`: 3/hour.
 - `/api/export/zip`: 10/hour.
 

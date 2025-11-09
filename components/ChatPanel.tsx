@@ -95,17 +95,29 @@ export default function ChatPanel({ stage, className, onDocUpdated, onStageReady
   const appendAssistantDelta = useCallback((delta: string) => {
     setMessages((prev) => {
       const messageId = streamingMessageIdRef.current;
+
       if (messageId) {
-        return prev.map((msg) => (msg.id === messageId ? { ...msg, text: msg.text + delta } : msg));
+        // Check if the message actually exists in the current state
+        const existingMessage = prev.find(msg => msg.id === messageId);
+        if (existingMessage) {
+          // Message exists, append to it
+          return prev.map((msg) => (msg.id === messageId ? { ...msg, text: msg.text + delta } : msg));
+        }
+        // Message doesn't exist (likely due to stale state from React double-calling)
+        // Create it with the accumulated text
+        return [...prev, { id: messageId, role: "assistant" as const, text: delta, createdAt: Date.now() }];
       }
+
+      // No messageId yet, create a new one
       const newId = crypto.randomUUID();
       streamingMessageIdRef.current = newId;
-      return [...prev, { id: newId, role: "assistant", text: delta, createdAt: Date.now() }];
+      return [...prev, { id: newId, role: "assistant" as const, text: delta, createdAt: Date.now() }];
     });
   }, []);
 
   const resetStreamState = useCallback(() => {
-    streamingMessageIdRef.current = null;
+    // Don't reset streamingMessageIdRef here - it causes a race condition
+    // with pending state updates. Reset it when starting a new message instead.
     setTypingRole(null);
     setIsStreaming(false);
   }, []);
@@ -308,7 +320,7 @@ export default function ChatPanel({ stage, className, onDocUpdated, onStageReady
             })}
           </MessageList>
           <MessageInput
-            placeholder="Ask the assistant to advance this stage…"
+            placeholder="Tell the Spec Agent about your app idea..."
             onSend={onSend}
             attachButton={false}
             sendButton={true}

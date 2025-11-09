@@ -30,10 +30,20 @@ export async function streamChat(options: StreamOptions) {
       return;
     } catch (error) {
       if (signal?.aborted) throw error;
+
+      // Don't retry on 429 (rate limit) - the backend lock needs to be released first
+      const status = (error as any)?.status;
+      if (status === 429) {
+        console.error("Rate limit hit - chat stream is already active or lock not released");
+        handlers?.onError?.(error as Error);
+        throw error;
+      }
+
       if (attempt === maxRetries) {
         handlers?.onError?.(error as Error);
         throw error;
       }
+
       const delay = Math.min(BASE_DELAY_MS * 2 ** attempt, 5_000);
       handlers?.onReconnect?.(attempt + 1, delay);
       await wait(delay, signal);
@@ -66,6 +76,16 @@ async function runStream({
     signal: combinedSignal
   });
 
+  if (!response.ok) {
+    const errorBody = await response.text().catch(() => "");
+    const error = new Error(
+      `CHAT_STREAM_FAILED(${response.status}): ${errorBody || response.statusText || "Unknown error"}`
+    );
+    // Add status to error for better handling
+    (error as any).status = response.status;
+    throw error;
+  }
+
   if (!response.body) {
     throw new Error("STREAM_NOT_SUPPORTED");
   }
@@ -95,13 +115,20 @@ function processBuffer(buffer: string, handlers?: StreamEventHandlers) {
   return remainder;
 }
 
-function handleEvent(payload: string, handlers?: StreamEventHandlers) {
+export function parseSSEPayload(payload: string) {
   const eventMatch = payload.match(/^event:\s*(.*)$/m);
-  const dataMatch = payload.match(/^data:\s*(.*)$/m);
-  if (!eventMatch || !dataMatch) return;
-
+  if (!eventMatch) return undefined;
+  const dataMatches = [...payload.matchAll(/^data:\s*(.*)$/gm)];
+  if (dataMatches.length === 0) return undefined;
   const eventName = eventMatch[1]?.trim();
-  const data = dataMatch[1] ?? "";
+  const data = dataMatches.map((match) => match[1] ?? "").join("\n");
+  return { eventName, data };
+}
+
+function handleEvent(payload: string, handlers?: StreamEventHandlers) {
+  const parsed = parseSSEPayload(payload);
+  if (!parsed) return;
+  const { eventName, data } = parsed;
 
   switch (eventName) {
     case "assistant.delta": {
