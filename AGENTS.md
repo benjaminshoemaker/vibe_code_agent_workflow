@@ -35,6 +35,11 @@ Strip macOS metadata directories (`__MACOSX/`) and `._*` resource-fork files fro
 - After a plan step is finished, document its completion state with a short checklist. Include: step name/number, test command/results, `prompt_plan.md` status, manual checks performed (mark as ✅ only after the human confirms they ran to their satisfaction), release notes status, and an inline commit summary string the human can copy/paste.
 - The human handles `git add`, `git commit`, and `git push`; do not run those commands yourself.
 
+#### When the prompt plan is fully satisfied
+- Once every Definition of Done task in `prompt_plan.md` is either checked off or explicitly marked `(Deferred)`, the plan is considered **complete**.  
+- After that point, you no longer need to update prompt-plan TODOs or reference `prompt_plan.md`, `spec.md`, `idea.md`, or other upstream docs to justify changes.  
+- All other guardrails, testing requirements, and agent responsibilities in this file continue to apply unchanged.
+
 ### Deferred-work notation
 - When a task is intentionally paused, keep its checkbox unchecked and prepend `(Deferred)` to the TODO label in `prompt_plan.md`, followed by a short reason.  
 - Apply the same `(Deferred)` tag to every downstream checklist item that depends on the paused work.

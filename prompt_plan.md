@@ -255,6 +255,10 @@ Integration: streaming deltas; timeout path; 499 mapping.
 - [x] Regression tests for SSE hijack + APIUserAbort keepalive output
 - [x] Treat real client disconnects via `request.raw.on("aborted")` so OpenAI calls stay alive for curl
 - [x] Tests cover both `name` and `type` APIUserAbortError variants
+- [x] Persist intake chat input + gate intake orchestrator until `READY_TO_DRAFT`
+- [x] Intake assistant prompt drives one-question interviews and unlocks Approve only when ready
+- [x] Stream fallback for `output_text` responses and surface HTTP errors before SSE starts
+- [x] Preserve multi-line assistant deltas in SSE by prefixing each `data:` line and parsing joined payloads (`src/routes/api/chat.ts`, `lib/stream.ts`, `tests/unit/chat-route.test.ts`, `tests/unit/stream-utils.test.ts`)
 
 ---
 
@@ -626,7 +630,7 @@ E2E: manifest renders; download produces correct zip.
 Add rate limiting and normalized errors.
 
 Tasks
-1) /api/chat: 5/min, 60/hour, one concurrent stream per sid.
+1) /api/chat: 30/min, 300/hour, one concurrent stream per sid.
 2) /api/designs/upload: 3/hour.  /api/export/zip: 10/hour.
 3) Central error handler -> 400, 401, 409, 413, 415, 422, 429, 499, 500.
 4) Ensure SSE routes use centralized mapping (client disconnect -> 499).
@@ -639,10 +643,11 @@ Tasks
 429 with retry-after; mapping assertions including 499.
 
 **TODO**
- - [x] Limiter
- - [x] Error handler
- - [x] Tests
- - [x] Manual QA verified
+- [x] Limiter
+- [x] Error handler
+- [x] Tests
+- [x] Manual QA verified
+- [x] Raised `/api/chat` per-minute quota to 30 (and 300/hour) so intake chats don’t hit 429 mid-interview (`src/routes/api/chat.ts`, `tests/unit/chat-route.test.ts`)
 
 ---
 

@@ -230,11 +230,35 @@ export default function Shell() {
   const handleDocUpdated = useCallback(
     (docName: string) => {
       if (!docName) return;
-      if (docName === selectedDoc) {
-        void fetchDoc(docName as DocName);
-      }
+
+      // Refresh session to get updated docs list
+      void fetch("/api/session", { credentials: "include" })
+        .then((r) => (r.ok ? r.json() : Promise.reject(r)))
+        .then((json: SessionResponse) => {
+          setSession((prev) => {
+            // Only update if something changed
+            if (JSON.stringify(prev?.docs) !== JSON.stringify(json.docs)) {
+              return json;
+            }
+            return prev;
+          });
+
+          // If this doc is currently selected, refresh its content
+          if (docName === selectedDoc) {
+            void fetchDoc(docName as DocName);
+          } else {
+            // If it's a new doc, select it
+            const allowed = docsForStage(json.current_stage, json.docs);
+            if (allowed.includes(docName as DocName) && !session?.docs.includes(docName)) {
+              setSelectedDoc(docName as DocName);
+            }
+          }
+        })
+        .catch((err) => {
+          console.error("Failed to refresh session after doc update:", err);
+        });
     },
-    [fetchDoc, selectedDoc]
+    [fetchDoc, selectedDoc, session?.docs]
   );
 
   if (!session) {

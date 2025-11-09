@@ -7,7 +7,7 @@ const GENERATION_TEMPERATURE = 0.2;
 const VALIDATION_TEMPERATURE = 0.0;
 const REQUEST_TIMEOUT_MS = 20_000;
 
-type ResponseInput = Parameters<Responses["create"]>[0]["input"];
+export type OpenAIResponseInput = Parameters<Responses["create"]>[0]["input"];
 
 const model = env.OPENAI_MODEL ?? DEFAULT_MODEL;
 const apiKey = env.OPENAI_API_KEY;
@@ -22,7 +22,7 @@ const client = new OpenAI({
 });
 
 export type OpenAIResponseOptions = {
-  input: ResponseInput;
+  input: OpenAIResponseInput;
   abortSignal?: AbortSignal;
 };
 
