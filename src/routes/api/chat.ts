@@ -2,6 +2,8 @@ import type { FastifyPluginCallback } from "fastify";
 import fp from "fastify-plugin";
 import { createAbortController, generateResponse } from "../../libs/openai";
 import { SESSION_COOKIE_NAME } from "../../utils/session-cookie";
+import { runStage } from "../../services/orchestrator";
+import { stageNames, type StageName } from "../../db/schema";
 
 type ChatRequestBody = {
   message: string;
@@ -64,6 +66,52 @@ const chatRoutes: FastifyPluginCallback = (app, _opts, done) => {
 
     request.raw.on("aborted", handleClientAbort);
 
+    const enableBridge = process.env.NODE_ENV !== "test";
+    const stageParam = request.body.stage as string;
+    const validStage = (stageNames as readonly string[]).includes(stageParam)
+      ? (stageParam as StageName)
+      : undefined;
+
+    const orchestratorPromise = enableBridge && validStage
+      ? runStage({
+          sessionId,
+          stage: validStage,
+          onEvent: (event) => {
+            if (reply.raw.closed) return;
+            switch (event.event) {
+              case "assistant.delta": {
+                const data = typeof event.data === "string" ? event.data : String(event.data ?? "");
+                reply.raw.write(formatEvent("assistant.delta", data));
+                break;
+              }
+              case "doc.updated": {
+                const name = (event as any).data?.name;
+                if (typeof name === "string" && name) {
+                  reply.raw.write(formatEvent("doc.updated", name));
+                }
+                break;
+              }
+              case "stage.ready": {
+                const stage = (event as any).data?.stage;
+                if (typeof stage === "string" && stage) {
+                  reply.raw.write(formatEvent("stage.ready", stage));
+                }
+                break;
+              }
+              case "stage.needs_more": {
+                // Preserve JSON payload shape for needs_more
+                reply.raw.write(formatEvent("stage.needs_more", event.data));
+                break;
+              }
+              default:
+                break;
+            }
+          }
+        }).catch((err) => {
+          request.log.error({ err }, "orchestrator.runStage failed");
+        })
+      : Promise.resolve();
+
     try {
       const response = await generateResponse({
         input: [{ role: "user", content: request.body.message }],
@@ -79,22 +127,35 @@ const chatRoutes: FastifyPluginCallback = (app, _opts, done) => {
         }
       }
 
+      await Promise.resolve(orchestratorPromise);
       closeStream();
     } catch (error: any) {
       if (isAbortError(error)) {
-        closeStream();
+        try {
+          await Promise.resolve(orchestratorPromise);
+        } finally {
+          closeStream();
+        }
         return;
       }
 
       if (isTimeoutError(error)) {
         sendNeedsMore({ stage: request.body.stage, reason: "TIMEOUT" });
-        closeStream();
+        try {
+          await Promise.resolve(orchestratorPromise);
+        } finally {
+          closeStream();
+        }
         return;
       }
 
       app.log.error({ err: error }, "chat stream failed");
       sendNeedsMore({ stage: request.body.stage, reason: "SERVER_ERROR" });
-      closeStream();
+      try {
+        await Promise.resolve(orchestratorPromise);
+      } finally {
+        closeStream();
+      }
     }
   });
 

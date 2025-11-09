@@ -535,10 +535,11 @@ Final approve flow.
 Approve advances; invalid rejected with reasons.
 
 **TODO**
-- [ ] Wire re-ingest
-- [ ] Update session flags
-- [ ] Bridge orchestrator events into chat SSE
+- [x] Wire re-ingest
+- [x] Update session flags
+- [x] Bridge orchestrator events into chat SSE
 - [ ] Tests
+- [x] Manual QA verified
 
 ---
 

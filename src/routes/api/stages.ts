@@ -5,6 +5,7 @@ import { stageNames, sessions, docs, type StageName, type DocName } from "../../
 import { db } from "../../db/client";
 import { SESSION_COOKIE_NAME, setSessionCookie } from "../../utils/session-cookie";
 import { validateStage } from "../../validators/stage-validator";
+import { orchestrator } from "../../services/orchestrator";
 
 const stageDocMap: Partial<Record<StageName, DocName>> = {
   intake: "idea.md",
@@ -37,6 +38,13 @@ const stagesRoutes: FastifyPluginCallback = (app, _opts, done) => {
     if ((session.currentStage as StageName) !== stage) {
       setSessionCookie(reply, sessionId);
       return reply.code(409).send({ error: "STAGE_MISMATCH" });
+    }
+
+    // Re-ingest context right before validation per spec
+    try {
+      await orchestrator.refreshContext({ sessionId, stage, phase: "pre_validation" });
+    } catch (err) {
+      request.log.warn({ err }, "refreshContext failed before validation");
     }
 
     const validation = await validateStage(sessionId, stage);
