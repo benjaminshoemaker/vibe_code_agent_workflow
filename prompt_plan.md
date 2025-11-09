@@ -715,12 +715,12 @@ All acceptance criteria pass.
 ---
 
 ## Done criteria (checklist)
-- [ ] All steps implemented with passing unit and integration tests  
-- [ ] E2E happy path passes  
-- [ ] Export ZIP contains docs, `/designs/`, and `manifest.json` with sha256  
-- [ ] Security headers and sandbox in place  
-- [ ] Rate limits enforced and SSE errors normalized (incl. 499)  
-- [ ] Re-ingest triggers at stage start, pre-validate, and on doc save/upload  
+- [x] All steps implemented with passing unit and integration tests (`pnpm run test:unit`)  
+- [x] E2E happy path passes (`tests/e2e/happy-path.spec.ts`)  
+- [x] Export ZIP contains docs, `/designs/`, and `manifest.json` with sha256 (see `tests/unit/export-route.test.ts` + happy-path verification)  
+- [x] Security headers and sandbox in place (`tests/e2e/home.spec.ts`, `tests/unit/server.test.ts`)  
+- [x] Rate limits enforced and SSE errors normalized (incl. 499) (`tests/unit/rate-limit.test.ts`, `tests/unit/chat-route.test.ts`, `src/plugins/error-handler.ts`)  
+- [x] Re-ingest triggers at stage start, pre-validate, and on doc save/upload (`tests/unit/orchestrator.test.ts`, `tests/unit/docs-routes.test.ts`, `tests/unit/designs-routes.test.ts`)  
 - [x] **ChatKit UI** in place for chat  
-- [ ] **LLM budgets** (≤4 total calls per stage) and default model configured  
+- [x] **LLM budgets** (≤4 total calls per stage) and default model configured (`src/orchestrator/constants.ts`, `tests/unit/orchestrator.test.ts`, `tests/unit/openai.test.ts`)  
 - [ ] (Deferred) **30-day chat retention** enforced — blocked by Step 23 deferral
