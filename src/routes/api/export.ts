@@ -7,6 +7,24 @@ import { SESSION_COOKIE_NAME } from "../../utils/session-cookie";
 import { buildManifest, createZipStream } from "../../utils/export";
 
 const exportRoutes: FastifyPluginCallback = (app, _opts, done) => {
+  app.get("/api/export/manifest", async (request, reply) => {
+    const sessionId = request.cookies[SESSION_COOKIE_NAME];
+    if (!sessionId) {
+      return reply.code(401).send({ error: "SESSION_NOT_FOUND" });
+    }
+
+    const [docRows, designRows] = await Promise.all([
+      db.query.docs.findMany({ where: eq(docs.sessionId, sessionId), columns: { name: true, content: true } }),
+      db.query.designs.findMany({
+        where: eq(designs.sessionId, sessionId),
+        columns: { path: true, size: true, contentType: true, sha256: true }
+      })
+    ]);
+
+    const manifest = buildManifest(docRows, designRows as any);
+    return reply.send(manifest);
+  });
+
   app.post("/api/export/zip", async (request, reply) => {
     const sessionId = request.cookies[SESSION_COOKIE_NAME];
     if (!sessionId) {
@@ -45,4 +63,3 @@ const exportRoutes: FastifyPluginCallback = (app, _opts, done) => {
 };
 
 export default fp(exportRoutes, { name: "export-routes" });
-
