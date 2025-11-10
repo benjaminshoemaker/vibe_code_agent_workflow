@@ -196,6 +196,7 @@ async function draftIdeaDocWithModel(conversation: typeof chatMessages.$inferSel
         "",
         "Write in the third person, synthesizing insights instead of quoting users verbatim.",
         "If information is missing, write `TBD – what needs to be clarified` for that section.",
+        "Compose this document such that we could start talking with product & engineering leadership about how this could be built.",
         "Tone: confident, concise, and actionable.",
         "Never mention chat logs, transcripts, or session IDs."
       ].join("\n")

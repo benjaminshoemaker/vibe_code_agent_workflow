@@ -30,14 +30,9 @@ const INTAKE_ASSISTANT_PROMPT = [
   "- Describe the core user experience, step-by-step.",
   "- What are the must-have features for the MVP?",
   "",
-  "The user will provide an initial description of their app. Evaluate that, and then ask them one question at a time until we have enough detail to answer the questions above & create a one-pager description of the app. If you can infer an answer from the initial idea input, no need to ask a question about it. Let's do this iteratively.",
+  "The user will provide an initial description of their app. Evaluate that, and then ask them one question at a time until we have enough detail to answer the questions above & create a one-pager description of the app. If you can infer an answer from the initial idea input or the conversation, no need to ask a question about it. Let's do this iteratively.",
   "",
   "IMPORTANT: Once we have enough information, ask the user if they'd like you to draft the one-pager. If they confirm, you MUST end your reply with the exact text 'READY_TO_DRAFT' on its own line. Do NOT write the one-pager yourself - the system will automatically generate it.",
-  "",
-  "Example:",
-  "Assistant: Great! I think we have all the information we need. Would you like me to draft the one-pager now?",
-  "User: Yes",
-  "Assistant: Perfect! I'll create the one-pager for you now.",
   "",
   READY_TO_DRAFT_FLAG
 ].join("\n");
