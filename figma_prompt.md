@@ -1,7 +1,7 @@
 Create a desktop-first, grayscale wireframe for a two-pane web app called **Agent-Ready Planner**. Use 1440×1024 frames with 12-column grid (80px margins, 24px gutters). Auto-layout everywhere. No color, icons optional, system font. Label everything clearly. Connect frames with arrows to show navigation.
 
 GLOBAL COMPONENTS
-- App Header: product name left, stage progress center (7 steps: Intake, One-Pager, Spec, Design, Prompt Plan, Agents, Export) with status chips [Draft | Ready | Approved], user session chip right.
+- App Header: product name left, stage progress center (6 steps: Intake, Spec, Design, Prompt Plan, Agents, Export) with status chips [Draft | Ready | Approved], user session chip right.
 - App Shell: Left Rail (320px) + Right Pane (fill). Left rail shows docs for **current and prior stages only**. Each doc item: name, status chip, and controls [Edit | Copy | Download]. Stage-level **Approve** button at top of right pane. Toast area bottom-right. Modal component “Confirm Approve”.
 - Chat Panel (right pane): messages stack with role badges [User | Assistant | Orchestrator], input box with Send. Small “Stage: <name>” label above thread.
 - Doc Viewer/Editor (right pane): tabbed header with “Preview | Edit”. Preview renders Markdown (assume raw HTML may appear). Edit is monospace text area.
@@ -18,17 +18,17 @@ FRAMES TO GENERATE (name frames exactly)
 
 2-App-Intake
 - Header + Stage progress (Intake highlighted).
-- Left Rail docs: [idea.md (Draft)] only. Controls visible.
-- Right Pane: split vertically → top: Chat, bottom: Doc Viewer (idea.md). Approve button disabled until “Ready” badge appears. Small helper text: “Ask one question at a time; stop when essentials are filled.”
+- Left Rail docs: [idea_one_pager.md (Draft)] only. Controls visible.
+- Right Pane: split vertically → top: Chat, bottom: Doc Viewer (idea_one_pager.md). Approve button disabled until “Ready” badge appears. Small helper text: “Ask one question at a time; stop when essentials are filled.”
 
-3-App-OnePager
-- Progress highlights One-Pager.
-- Left Rail docs: [idea.md (Approved), idea_one_pager.md (Draft)].
+3-App-Intake-Ready
+- Progress highlights Intake with a READY badge once the assistant emits `READY_TO_DRAFT`.
+- Left Rail docs: [idea_one_pager.md (Draft)] (same doc, but showing readiness state).
 - Right Pane: Chat + Doc Viewer showing idea_one_pager.md. Approve button enabled when coherent.
 
 4-App-Spec
 - Progress highlights Spec.
-- Left Rail docs: [idea.md (Approved), idea_one_pager.md (Approved), spec.md (Draft)].
+- Left Rail docs: [idea_one_pager.md (Approved), spec.md (Draft)].
 - Right Pane: Doc Viewer default to Edit with a placeholder DoD checklist section. Banner: “Edits after approval will not affect this session; use Start new session.”
 
 5-App-Design

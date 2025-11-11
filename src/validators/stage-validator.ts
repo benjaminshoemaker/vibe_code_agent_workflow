@@ -14,7 +14,6 @@ const onePagerSections = ["Problem", "Audience", "Platform", "Core Flow", "MVP F
 
 const stageValidators: Record<StageName, StageValidator> = {
   intake: validateIntake,
-  one_pager: validateOnePager,
   spec: validateSpec,
   design: validateDesign,
   prompt_plan: validatePromptPlan,
@@ -34,10 +33,6 @@ export async function validateStage(
 }
 
 async function validateIntake(sessionId: string): Promise<StageValidationResult> {
-  return requireDocContent(sessionId, "idea.md", "idea.md is empty.");
-}
-
-async function validateOnePager(sessionId: string): Promise<StageValidationResult> {
   const doc = await getDoc(sessionId, "idea_one_pager.md");
   if (!doc || !hasContent(doc.content)) {
     return fail("idea_one_pager.md is empty.");

@@ -13,15 +13,7 @@ test("home page renders hero content", async ({ page }) => {
   await expect(page.getByRole("button", { name: "Start new session" })).toBeVisible();
   await expect(page.getByRole("link", { name: "Resume" })).toBeVisible();
   // Stage chips present
-  for (const stage of [
-    "intake",
-    "one_pager",
-    "spec",
-    "design",
-    "prompt_plan",
-    "agents",
-    "export"
-  ]) {
+  for (const stage of ["intake", "spec", "design", "prompt_plan", "agents", "export"]) {
     await expect(page.getByText(stage, { exact: true })).toBeVisible();
   }
   // Snippet cards present
@@ -51,13 +43,26 @@ test("security headers are present on web and api responses", async ({ page, req
   expect(apiResponse.headers()["x-content-type-options"]).toBe("nosniff");
 });
 
+const requiredIntakeDoc = [
+  "## Problem",
+  "Validated problem statement for intake test.",
+  "## Audience",
+  "Solo founders",
+  "## Platform",
+  "Web app",
+  "## Core Flow",
+  "Intake → Spec → Design",
+  "## MVP Features",
+  "- Chat\n- Docs"
+].join("\n");
+
 test("doc editor surfaces Start new session CTA after DOC_APPROVED response", async ({ page }) => {
   await initSession(page);
   await page.goto("/app");
   await page.waitForSelector('[data-testid="app-shell"]');
   await page.getByTestId("doc-tab-edit").click();
   const textarea = page.getByPlaceholder("Start typing...");
-  await textarea.fill("Updated idea");
+  await textarea.fill(requiredIntakeDoc);
   const saveButton = page.getByTestId("doc-save-button");
   await saveButton.click();
   await expect(saveButton).toBeEnabled();
@@ -85,7 +90,7 @@ test("landing Start new session button resets progress", async ({ page }) => {
   await expect(textarea).toHaveValue("Old session content");
 
   const storedContent = await page.evaluate(async () => {
-    const res = await fetch("/api/docs/idea.md", { credentials: "include" });
+    const res = await fetch("/api/docs/idea_one_pager.md", { credentials: "include" });
     const data = (await res.json()) as { content: string };
     return data.content;
   });
@@ -97,7 +102,7 @@ test("landing Start new session button resets progress", async ({ page }) => {
   await page.waitForSelector('[data-testid="app-shell"]');
 
   const newSessionContent = await page.evaluate(async () => {
-    const res = await fetch("/api/docs/idea.md", { credentials: "include" });
+    const res = await fetch("/api/docs/idea_one_pager.md", { credentials: "include" });
     const data = (await res.json()) as { content: string };
     return data.content;
   });

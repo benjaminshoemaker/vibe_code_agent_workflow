@@ -30,7 +30,7 @@ describe("stage routes", () => {
 
   it("rejects approvals for stages that are not active", async () => {
     const session = await createSession();
-    await setDocContent(session.sessionId, "idea.md", "# Idea\n");
+    await setDocContent(session.sessionId, "idea_one_pager.md", requiredSections());
 
     const response = await postStage(session.cookie, "spec");
 
@@ -38,18 +38,18 @@ describe("stage routes", () => {
     expect(response.json().error).toBe("STAGE_MISMATCH");
   });
 
-  it("fails intake validation when idea.md is empty", async () => {
+  it("fails intake validation when idea_one_pager.md is empty", async () => {
     const session = await createSession();
     const response = await postStage(session.cookie, "intake");
 
     expect(response.statusCode).toBe(422);
     expect(response.json()).toMatchObject({ ok: false });
-    expect(response.json().reasons[0]).toContain("idea.md");
+    expect(response.json().reasons[0]).toContain("idea_one_pager.md");
   });
 
-  it("approves intake stage, locks doc, and advances to one_pager", async () => {
+  it("approves intake stage, locks doc, and advances to spec", async () => {
     const session = await createSession();
-    await setDocContent(session.sessionId, "idea.md", "# Idea\n\nProblem statement.");
+    await setDocContent(session.sessionId, "idea_one_pager.md", requiredSections());
 
     const response = await postStage(session.cookie, "intake");
 
@@ -60,11 +60,11 @@ describe("stage routes", () => {
       where: eq(sessions.sessionId, session.sessionId)
     });
     expect(Boolean(dbSession?.approvedIntake)).toBe(true);
-    expect(dbSession?.currentStage).toBe("one_pager");
+    expect(dbSession?.currentStage).toBe("spec");
 
     const ideaDoc = await db.query.docs.findFirst({
       where: (table, { and }) =>
-        and(eq(table.sessionId, session.sessionId), eq(table.name, "idea.md"))
+        and(eq(table.sessionId, session.sessionId), eq(table.name, "idea_one_pager.md"))
     });
     expect(Boolean(ideaDoc?.approved)).toBe(true);
   });
@@ -95,32 +95,6 @@ describe("stage routes", () => {
     });
     expect(Boolean(dbSession?.approvedDesign)).toBe(true);
     expect(dbSession?.currentStage).toBe("prompt_plan");
-  });
-
-  it("approves one_pager stage and advances to spec", async () => {
-    const session = await createSession();
-    await setSessionStage(session.sessionId, "one_pager");
-    await setDocContent(
-      session.sessionId,
-      "idea_one_pager.md",
-      [
-        "## Problem",
-        "## Audience",
-        "## Platform",
-        "## Core Flow",
-        "## MVP Features"
-      ].join("\n\n")
-    );
-
-    const response = await postStage(session.cookie, "one_pager");
-    expect(response.statusCode).toBe(200);
-    expect(response.json()).toEqual({ ok: true });
-
-    const dbSession = await db.query.sessions.findFirst({
-      where: eq(sessions.sessionId, session.sessionId)
-    });
-    expect(Boolean(dbSession?.approvedOnePager)).toBe(true);
-    expect(dbSession?.currentStage).toBe("spec");
   });
 
   it("approves agents stage and advances to export", async () => {
@@ -166,4 +140,14 @@ async function setSessionStage(sessionId: string, stage: StageName) {
     .update(sessions)
     .set({ currentStage: stage })
     .where(eq(sessions.sessionId, sessionId));
+}
+
+function requiredSections() {
+  return [
+    "## Problem",
+    "## Audience",
+    "## Platform",
+    "## Core Flow",
+    "## MVP Features"
+  ].join("\n\n");
 }

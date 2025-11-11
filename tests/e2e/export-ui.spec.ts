@@ -29,9 +29,6 @@ test("Export UI shows manifest and downloads zip", async ({ page }) => {
   await page.goto("/");
 
   // Seed minimal valid docs to reach export
-  await putDoc(page, "idea.md", "# Idea\n\nProblem statement.");
-  await approve(page, "intake");
-
   await putDoc(
     page,
     "idea_one_pager.md",
@@ -48,7 +45,7 @@ test("Export UI shows manifest and downloads zip", async ({ page }) => {
       "x"
     ].join("\n")
   );
-  await approve(page, "one_pager");
+  await approve(page, "intake");
 
   await putDoc(
     page,

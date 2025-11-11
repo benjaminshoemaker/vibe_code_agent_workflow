@@ -33,12 +33,12 @@ describe("docs routes", () => {
 
     const response = await app.inject({
       method: "GET",
-      url: "/api/docs/idea.md",
+      url: "/api/docs/idea_one_pager.md",
       headers: { cookie: session.cookie }
     });
 
     expect(response.statusCode).toBe(200);
-    expect(response.json()).toMatchObject({ name: "idea.md", approved: false });
+    expect(response.json()).toMatchObject({ name: "idea_one_pager.md", approved: false });
   });
 
   it("prevents editing approved docs", async () => {
@@ -50,7 +50,7 @@ describe("docs routes", () => {
 
     const response = await app.inject({
       method: "PUT",
-      url: "/api/docs/idea.md",
+      url: "/api/docs/idea_one_pager.md",
       headers: { cookie: session.cookie },
       payload: { content: "Updated" }
     });
@@ -64,7 +64,7 @@ describe("docs routes", () => {
 
     const response = await app.inject({
       method: "PUT",
-      url: "/api/docs/idea.md",
+      url: "/api/docs/idea_one_pager.md",
       headers: { cookie: session.cookie },
       payload: { content: "New content" }
     });
@@ -72,11 +72,11 @@ describe("docs routes", () => {
     expect(response.statusCode).toBe(200);
     const updatedDoc = await db.query.docs.findFirst({
       where: (table, { and }) =>
-        and(eq(table.sessionId, session.sessionId), eq(table.name, "idea.md"))
+        and(eq(table.sessionId, session.sessionId), eq(table.name, "idea_one_pager.md"))
     });
     expect(updatedDoc?.content).toBe("New content");
     expect(orchestrator.reingest).toHaveBeenCalledWith(
-      expect.objectContaining({ sessionId: session.sessionId, docName: "idea.md" })
+      expect.objectContaining({ sessionId: session.sessionId, docName: "idea_one_pager.md" })
     );
   });
 });

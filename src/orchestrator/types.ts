@@ -1,6 +1,5 @@
 export type StageName =
   | "intake"
-  | "one_pager"
   | "spec"
   | "design"
   | "prompt_plan"

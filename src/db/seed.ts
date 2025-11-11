@@ -9,7 +9,6 @@ async function seed() {
     sessionId,
     currentStage: "intake",
     approvedIntake: false,
-    approvedOnePager: false,
     approvedSpec: false,
     approvedDesign: false,
     approvedPromptPlan: false,
@@ -19,8 +18,8 @@ async function seed() {
   await db.insert(docs).values([
     {
       sessionId,
-      name: "idea.md",
-      content: "# Example idea\n\n- Problem: ...\n",
+      name: "idea_one_pager.md",
+      content: "# Example idea one-pager\n\n## Problem\n...\n",
       approved: false
     },
     {

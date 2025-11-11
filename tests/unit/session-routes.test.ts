@@ -82,11 +82,10 @@ describe("session routes", () => {
     expect(response.statusCode).toBe(200);
     const payload = response.json();
     expect(payload.current_stage).toBe("intake");
-    expect(payload.docs).toHaveLength(5);
+    expect(payload.docs).toHaveLength(4);
     expect(payload.designs_count).toBe(0);
     expect(payload.approved).toMatchObject({
       intake: false,
-      one_pager: false,
       spec: false,
       design: false,
       prompt_plan: false,

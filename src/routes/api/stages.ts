@@ -8,8 +8,7 @@ import { validateStage } from "../../validators/stage-validator";
 import { orchestrator } from "../../services/orchestrator";
 
 const stageDocMap: Partial<Record<StageName, DocName>> = {
-  intake: "idea.md",
-  one_pager: "idea_one_pager.md",
+  intake: "idea_one_pager.md",
   spec: "spec.md",
   prompt_plan: "prompt_plan.md",
   agents: "AGENTS.md"
@@ -84,9 +83,6 @@ function buildSessionUpdates(stage: StageName): Partial<typeof sessions.$inferIn
   switch (stage) {
     case "intake":
       updates.approvedIntake = true;
-      break;
-    case "one_pager":
-      updates.approvedOnePager = true;
       break;
     case "spec":
       updates.approvedSpec = true;

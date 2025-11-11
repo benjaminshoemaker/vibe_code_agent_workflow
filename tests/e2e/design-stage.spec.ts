@@ -29,9 +29,6 @@ test("Design stage: upload ZIP, gate Approve until ready, then enable and advanc
   await page.goto("/");
 
   // Prepare and approve prior stages to reach Design
-  await putDoc(page, "idea.md", "# Idea\n\nProblem statement.");
-  await approve(page, "intake");
-
   await putDoc(
     page,
     "idea_one_pager.md",
@@ -48,7 +45,7 @@ test("Design stage: upload ZIP, gate Approve until ready, then enable and advanc
       "x"
     ].join("\n")
   );
-  await approve(page, "one_pager");
+  await approve(page, "intake");
 
   await putDoc(
     page,

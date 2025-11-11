@@ -36,7 +36,6 @@ CREATE TABLE `sessions` (
 	`session_id` text PRIMARY KEY NOT NULL,
 	`current_stage` text NOT NULL,
 	`approved_intake` integer DEFAULT false NOT NULL,
-	`approved_one_pager` integer DEFAULT false NOT NULL,
 	`approved_spec` integer DEFAULT false NOT NULL,
 	`approved_design` integer DEFAULT false NOT NULL,
 	`approved_prompt_plan` integer DEFAULT false NOT NULL,

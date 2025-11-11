@@ -264,14 +264,6 @@
           "autoincrement": false,
           "default": false
         },
-        "approved_one_pager": {
-          "name": "approved_one_pager",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false,
-          "default": false
-        },
         "approved_spec": {
           "name": "approved_spec",
           "type": "integer",

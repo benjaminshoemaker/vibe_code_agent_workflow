@@ -11,6 +11,8 @@ vi.mock("../../src/libs/openai", () => {
 });
 
 const { generateResponse } = await import("../../src/libs/openai");
+const SPEC_COMPILE_PROMPT =
+  "Now that we've wrapped up the brainstorming process, can you compile our findings into a comprehensive, developer-ready specification? Include all relevant requirements, architecture choices, data handling details, error handling strategies, and a testing plan so a developer can immediately begin implementation.";
 
 describe("Stage writers integration", () => {
   let sessionId: string;
@@ -23,8 +25,8 @@ describe("Stage writers integration", () => {
     await db.delete(sessions).where(eq(sessions.sessionId, sessionId));
   });
 
-  it("populates intake → one_pager → spec docs", async () => {
-    mockIdeaDoc(`# Idea Overview
+  it("populates intake → spec docs", async () => {
+    mockLLMResponse(`# Idea Overview
 
 ## Summary
 The product keeps multi-stage plans organized.
@@ -49,13 +51,8 @@ Mobile apps in the MVP.`);
 
     let result = await runStage({ sessionId, stage: "intake" });
     expect(result.status).toBe("ready");
-    const ideaDoc = await readDoc(sessionId, "idea.md");
+    const ideaDoc = await readDoc(sessionId, "idea_one_pager.md");
     expect(ideaDoc).toMatch(/## Problem/);
-
-    result = await runStage({ sessionId, stage: "one_pager" });
-    expect(result.status).toBe("ready");
-    const onePagerDoc = await readDoc(sessionId, "idea_one_pager.md");
-    expect(onePagerDoc).toMatch(/## MVP Features/);
 
     result = await runStage({ sessionId, stage: "spec" });
     expect(result.status).toBe("ready");
@@ -63,7 +60,7 @@ Mobile apps in the MVP.`);
     expect(specDoc).toMatch(/Definition of Done/i);
   });
 
-  it("uses intake Q&A responses to craft idea.md sections", async () => {
+  it("uses intake Q&A responses to craft idea_one_pager.md sections", async () => {
     await db.insert(chatMessages).values([
       {
         sessionId,
@@ -127,7 +124,7 @@ Mobile apps in the MVP.`);
       }
     ]);
 
-    mockIdeaDoc(`# Idea Overview
+    mockLLMResponse(`# Idea Overview
 
 ## Summary
 Freelancers finally get a shared workspace for climate project pitches, replacing scattered chats and sheets.
@@ -153,11 +150,69 @@ Native mobile apps or channel-specific automation in v1.`);
     const result = await runStage({ sessionId, stage: "intake" });
     expect(result.status).toBe("ready");
 
-    const ideaDoc = await readDoc(sessionId, "idea.md");
+    const ideaDoc = await readDoc(sessionId, "idea_one_pager.md");
     expect(ideaDoc).toContain("Freelancers bounce between spreadsheets and Slack");
     expect(ideaDoc).toContain("RevOps leads at climate-focused Series A startups");
     expect(ideaDoc).toContain("Responsive web with Slack notifications for approvals and nudges.");
     expect(ideaDoc).not.toContain("Session:");
+  });
+
+  it("compiles spec.md from the transcript using the provided prompt", async () => {
+    vi.clearAllMocks();
+    await db
+      .update(docs)
+      .set({ content: seededOnePager() })
+      .where(and(eq(docs.sessionId, sessionId), eq(docs.name, "idea_one_pager.md")));
+
+    await db.insert(chatMessages).values([
+      {
+        sessionId,
+        stage: "spec",
+        role: "assistant",
+        content: "Thank you for providing idea_one_pager.md. I'm going to walk you through questions to create a developer-ready specification."
+      },
+      {
+        sessionId,
+        stage: "spec",
+        role: "user",
+        content: "We need multi-tenant RBAC with audit trails."
+      },
+      {
+        sessionId,
+        stage: "spec",
+        role: "assistant",
+        content: "How should we persist conversations and docs?"
+      },
+      {
+        sessionId,
+        stage: "spec",
+        role: "user",
+        content: "Store everything in Turso via Drizzle with soft deletes."
+      }
+    ]);
+
+    mockLLMResponse(`# Functional Spec
+
+## Summary
+- Multi-tenant RBAC with audit logs.
+
+## Definition of Done
+- Docs, chat, and approvals wired.
+`);
+
+    const result = await runStage({ sessionId, stage: "spec" });
+    expect(result.status).toBe("ready");
+    const specDoc = await readDoc(sessionId, "spec.md");
+    expect(specDoc).toContain("Functional Spec");
+    expect(specDoc).toMatch(/Multi-tenant RBAC/i);
+    expect(specDoc).toContain("## Intake Reference");
+
+    const lastCall = (generateResponse as Mock).mock.calls.at(-1)?.[0];
+    expect(lastCall?.input).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ role: "user", content: SPEC_COMPILE_PROMPT, type: "message" })
+      ])
+    );
   });
 });
 
@@ -168,7 +223,6 @@ async function seedSessionWithIdea() {
     sessionId,
     currentStage: "intake",
     approvedIntake: false,
-    approvedOnePager: false,
     approvedSpec: false,
     approvedDesign: false,
     approvedPromptPlan: false,
@@ -197,14 +251,39 @@ async function seedSessionWithIdea() {
   return sessionId;
 }
 
-async function readDoc(sessionId: string, name: "idea.md" | "idea_one_pager.md" | "spec.md") {
+async function readDoc(sessionId: string, name: "idea_one_pager.md" | "spec.md") {
   const row = await db.query.docs.findFirst({
     where: (table, { and }) => and(eq(table.sessionId, sessionId), eq(table.name, name))
   });
   return row?.content ?? "";
 }
 
-function mockIdeaDoc(text: string) {
+function seededOnePager() {
+  return `# Idea Overview
+
+## Summary
+Planner keeps seven stages organized.
+
+## Problem
+Specs drift from intake context.
+
+## Audience
+Operators shepherding approvals.
+
+## Platform
+Responsive web first.
+
+## Core Flow
+Chat -> docs -> approvals -> export.
+
+## MVP Features
+Chat, docs, approvals, export.
+
+## Non-Goals
+Native mobile apps in v1.`;
+}
+
+function mockLLMResponse(text: string) {
   (generateResponse as Mock).mockResolvedValueOnce({
     output: [
       {

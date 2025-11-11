@@ -1,8 +1,7 @@
 CREATE TABLE IF NOT EXISTS `sessions` (
 	`session_id` text PRIMARY KEY NOT NULL,
-	`current_stage` text NOT NULL CHECK (`current_stage` IN ('intake','one_pager','spec','design','prompt_plan','agents','export')),
+	`current_stage` text NOT NULL CHECK (`current_stage` IN ('intake','spec','design','prompt_plan','agents','export')),
 	`approved_intake` integer DEFAULT 0 NOT NULL,
-	`approved_one_pager` integer DEFAULT 0 NOT NULL,
 	`approved_spec` integer DEFAULT 0 NOT NULL,
 	`approved_design` integer DEFAULT 0 NOT NULL,
 	`approved_prompt_plan` integer DEFAULT 0 NOT NULL,
@@ -15,7 +14,7 @@ CREATE INDEX IF NOT EXISTS `sessions_activity_idx` ON `sessions` (`last_activity
 
 CREATE TABLE IF NOT EXISTS `docs` (
 	`session_id` text NOT NULL,
-	`name` text NOT NULL CHECK (`name` IN ('idea.md','idea_one_pager.md','spec.md','prompt_plan.md','AGENTS.md')),
+	`name` text NOT NULL CHECK (`name` IN ('idea_one_pager.md','spec.md','prompt_plan.md','AGENTS.md')),
 	`content` text NOT NULL,
 	`approved` integer DEFAULT 0 NOT NULL,
 	`updated_at` integer DEFAULT (strftime('%s','now') * 1000) NOT NULL,
@@ -26,7 +25,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS `docs_session_name_idx` ON `docs` (`session_id
 CREATE TABLE IF NOT EXISTS `chat_messages` (
 	`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
 	`session_id` text NOT NULL,
-	`stage` text CHECK (`stage` IN ('intake','one_pager','spec','design','prompt_plan','agents','export')),
+	`stage` text CHECK (`stage` IN ('intake','spec','design','prompt_plan','agents','export')),
 	`role` text NOT NULL CHECK (`role` IN ('user','assistant','orchestrator')),
 	`content` text NOT NULL,
 	`created_at` integer DEFAULT (strftime('%s','now') * 1000) NOT NULL,

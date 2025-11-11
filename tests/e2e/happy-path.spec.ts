@@ -14,7 +14,7 @@ test("happy path: intake → export with manifest-verified download", async ({ p
   const editorTab = page.getByTestId("doc-tab-edit");
   const textarea = page.getByPlaceholder("Start typing...");
 
-  // Stage 1 — Intake: author content via UI, gate on stage.ready
+  // Stage 1 — Intake (idea_one_pager): author content via UI, gate on stage.ready
   await expect(approveButton).toBeDisabled();
   await editorTab.click();
   const ideaContent = await fs.readFile(path.resolve("tests/e2e/fixtures/idea.md"), "utf8");
@@ -24,32 +24,9 @@ test("happy path: intake → export with manifest-verified download", async ({ p
   await markStageReady(page, "intake");
   await expect(approveButton).toBeEnabled();
   await approveButton.click();
-  await expect(page.getByRole("heading", { name: "Stage: One-Pager" })).toBeVisible();
-
-  // Stage 2 — One-Pager: seed required sections, ensure Approve waits for stage.ready
-  await expect(approveButton).toBeDisabled();
-  await seedDoc(
-    page,
-    "idea_one_pager.md",
-    [
-      "## Problem",
-      "- Guided automation ensures the MVP captures essentials.",
-      "## Audience",
-      "- Solo founders shipping quickly.",
-      "## Platform",
-      "- Next.js app with Fastify APIs.",
-      "## Core Flow",
-      "- Intake → One-Pager → Spec.",
-      "## MVP Features",
-      "- Chat, docs, approvals."
-    ].join("\n")
-  );
-  await markStageReady(page, "one_pager");
-  await expect(approveButton).toBeEnabled();
-  await approveButton.click();
   await expect(page.getByRole("heading", { name: "Stage: Spec" })).toBeVisible();
 
-  // Stage 3 — Spec: includes Definition of Done and prior doc references
+  // Stage 2 — Spec: includes Definition of Done and prior doc references
   await expect(approveButton).toBeDisabled();
   await seedDoc(
     page,
@@ -58,7 +35,7 @@ test("happy path: intake → export with manifest-verified download", async ({ p
       "# Functional Spec",
       "This spec references the Problem and Audience from earlier stages.",
       "## Definition of Done",
-      "- Intake, One-Pager, and Spec all approved.",
+      "- Intake and Spec stages approved.",
       "- Export ZIP builds with manifest."
     ].join("\n\n")
   );
@@ -67,7 +44,7 @@ test("happy path: intake → export with manifest-verified download", async ({ p
   await approveButton.click();
   await expect(page.getByRole("heading", { name: "Stage: Design" })).toBeVisible();
 
-  // Stage 4 — Design: upload ZIP, require ready signal after assets exist
+  // Stage 3 — Design: upload ZIP, require ready signal after assets exist
   await expect(approveButton).toBeDisabled();
   const zipPath = path.resolve("designs/Design_Images.zip");
   await page.waitForSelector('input[type="file"]');
@@ -78,7 +55,7 @@ test("happy path: intake → export with manifest-verified download", async ({ p
   await approveButton.click();
   await expect(page.getByRole("heading", { name: "Stage: Prompt Plan" })).toBeVisible();
 
-  // Stage 5 — Prompt Plan: approve via API to trigger 409 lock flow on edit
+  // Stage 4 — Prompt Plan: approve via API to trigger 409 lock flow on edit
   await expect(approveButton).toBeDisabled();
   await seedDoc(
     page,
@@ -112,7 +89,7 @@ test("happy path: intake → export with manifest-verified download", async ({ p
   await page.waitForSelector('[data-testid="app-shell"]');
   await expect(page.getByRole("heading", { name: "Stage: Agents" })).toBeVisible();
 
-  // Stage 6 — Agents: supply required section and approve via UI
+  // Stage 5 — Agents: supply required section and approve via UI
   await expect(approveButton).toBeDisabled();
   await seedDoc(
     page,
@@ -130,7 +107,7 @@ test("happy path: intake → export with manifest-verified download", async ({ p
   await approveButton.click();
   await expect(page.getByRole("heading", { name: "Stage: Export" })).toBeVisible();
 
-  // Stage 7 — Export: manifest preview + download with verified payload
+  // Stage 6 — Export: manifest preview + download with verified payload
   const manifestPre = page.getByTestId("export-manifest-json");
   await expect(manifestPre).toContainText('"docs"');
   await expect(manifestPre).toContainText('"sha256"');
@@ -148,7 +125,7 @@ test("happy path: intake → export with manifest-verified download", async ({ p
   expect(files.has("manifest.json")).toBe(true);
   const manifest = JSON.parse(files.get("manifest.json")!.toString("utf8"));
 
-  const docNames = ["AGENTS.md", "idea.md", "idea_one_pager.md", "prompt_plan.md", "spec.md"];
+  const docNames = ["AGENTS.md", "idea_one_pager.md", "prompt_plan.md", "spec.md"];
   for (const name of docNames) {
     const file = files.get(name);
     expect(file).toBeDefined();
