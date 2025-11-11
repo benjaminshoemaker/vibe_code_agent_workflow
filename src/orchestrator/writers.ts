@@ -36,10 +36,17 @@ const agentResponsibilityBlock = [
   "- Even when automated coverage exists, always suggest a feasible manual test path so the human can exercise the feature end-to-end.",
   "- After a plan step is finished, document its completion state with a short checklist so the human can copy/paste it into a commit."
 ].join("\n");
+const SPEC_COMPILE_PROMPT =
+  "Now that we've wrapped up the brainstorming process, can you compile our findings into a comprehensive, developer-ready specification? Include all relevant requirements, architecture choices, data handling details, error handling strategies, and a testing plan so a developer can immediately begin implementation.";
+const DEFAULT_SPEC_DEFINITION_OF_DONE = [
+  "- Intake, one-pager, and spec docs are approved.",
+  "- Design prompt is ready for the human designer.",
+  "- Prompt plan enumerates TODOs with passing tests.",
+  "- AGENTS.md references the required “Agent responsibility” section."
+].join("\n");
 
 export const stageWriters: Record<StageName, StageWriter> = {
   intake: runIntakeStage,
-  one_pager: runOnePagerStage,
   spec: runSpecStage,
   design: runDesignStage,
   prompt_plan: runPromptPlanStage,
@@ -63,37 +70,29 @@ async function runIntakeStage(args: StageDriverRunArgs): Promise<StageDriverResu
     content = buildIntakeDoc(insights);
   }
 
-  await writeDoc(args.sessionId, "idea.md", content);
-  emitDocUpdated(args.emit, "idea.md", content);
-  emitDelta(args.emit, "Documented intake notes into idea.md.");
-  return ready();
-}
-
-async function runOnePagerStage(args: StageDriverRunArgs): Promise<StageDriverResult> {
-  const ideaDoc = await readDoc(args.sessionId, "idea.md");
-  if (!hasContent(ideaDoc)) {
-    return failNeedsMore(args, "one_pager", "MISSING_INTAKE_DOC");
-  }
-
-  const sections = extractSections(ideaDoc ?? "");
-  const content = buildOnePagerDoc(sections);
   await writeDoc(args.sessionId, "idea_one_pager.md", content);
   emitDocUpdated(args.emit, "idea_one_pager.md", content);
-  emitDelta(args.emit, "Summarized intake sections into idea_one_pager.md.");
+  emitDelta(args.emit, "Documented intake notes into idea_one_pager.md.");
   return ready();
 }
 
 async function runSpecStage(args: StageDriverRunArgs): Promise<StageDriverResult> {
-  const onePager = await readDoc(args.sessionId, "idea_one_pager.md");
-  if (!hasContent(onePager)) {
+  const ideaDoc = await readDoc(args.sessionId, "idea_one_pager.md");
+  if (!hasContent(ideaDoc)) {
     return failNeedsMore(args, "spec", "MISSING_ONE_PAGER");
   }
 
-  const sections = extractSections(onePager ?? "");
-  const content = buildSpecDoc(sections);
+  const sections = extractSections(ideaDoc ?? "");
+  const conversation = await fetchSpecConversation(args.sessionId);
+  const generated = await draftSpecDocWithModel({
+    ideaDoc: ideaDoc ?? "",
+    ideaSections: sections,
+    conversation
+  }).catch(() => undefined);
+  const content = generated ?? buildSpecDoc(sections);
   await writeDoc(args.sessionId, "spec.md", content);
   emitDocUpdated(args.emit, "spec.md", content);
-  emitDelta(args.emit, "Compiled one_pager insights into spec.md.");
+  emitDelta(args.emit, "Compiled the spec interview into spec.md.");
   return ready();
 }
 
@@ -133,12 +132,10 @@ async function runAgentsStage(args: StageDriverRunArgs): Promise<StageDriverResu
     return failNeedsMore(args, "agents", "MISSING_PROMPT_PLAN");
   }
 
-  const ideaDoc = await readDoc(args.sessionId, "idea.md");
-  const onePager = await readDoc(args.sessionId, "idea_one_pager.md");
+  const ideaDoc = await readDoc(args.sessionId, "idea_one_pager.md");
   const specDoc = await readDoc(args.sessionId, "spec.md");
   const content = buildAgentsDoc({
-    idea: ideaDoc ?? "",
-    onePager: onePager ?? "",
+    ideaOnePager: ideaDoc ?? "",
     spec: specDoc ?? "",
     promptPlan: planDoc ?? ""
   });
@@ -185,7 +182,7 @@ async function draftIdeaDocWithModel(conversation: typeof chatMessages.$inferSel
       type: "message",
       content: [
         "You are a founding product lead who turns intake interviews into clear planning docs.",
-        "Produce Markdown for `idea.md` with these sections (in order):",
+        "Produce Markdown for `idea_one_pager.md` with these sections (in order):",
         "## Summary",
         "## Problem",
         "## Audience",
@@ -231,6 +228,14 @@ const contentTopicMatchers: Array<{ section: IntakeSection; pattern: RegExp }> =
 async function fetchIntakeConversation(sessionId: string) {
   return db.query.chatMessages.findMany({
     where: and(eq(chatMessages.sessionId, sessionId), eq(chatMessages.stage, "intake")),
+    orderBy: [asc(chatMessages.createdAt)],
+    limit: 200
+  });
+}
+
+async function fetchSpecConversation(sessionId: string) {
+  return db.query.chatMessages.findMany({
+    where: and(eq(chatMessages.sessionId, sessionId), eq(chatMessages.stage, "spec")),
     orderBy: [asc(chatMessages.createdAt)],
     limit: 200
   });
@@ -468,14 +473,7 @@ function buildSpecDoc(onePagerSections: SectionMap) {
         .join("\n")
     : "- Details from the one-pager will be refined with the operator.";
 
-  const definitionOfDone = [
-    "- Intake, one-pager, and spec docs are approved.",
-    "- Design prompt is ready for the human designer.",
-    "- Prompt plan enumerates TODOs with passing tests.",
-    "- AGENTS.md references the required “Agent responsibility” section."
-  ].join("\n");
-
-  return [
+  const body = [
     "# Functional Spec",
     "## Summary",
     summaryLines,
@@ -484,8 +482,95 @@ function buildSpecDoc(onePagerSections: SectionMap) {
     "- Persist sessions, docs, and design uploads in Turso/SQLite via Drizzle.",
     "- Enforce CSP + sandbox for Markdown preview and design assets.",
     "## Definition of Done",
-    definitionOfDone
+    DEFAULT_SPEC_DEFINITION_OF_DONE
   ].join("\n\n");
+
+  return ensureSpecStructure(body, onePagerSections);
+}
+
+async function draftSpecDocWithModel({
+  ideaDoc,
+  ideaSections,
+  conversation
+}: {
+  ideaDoc: string;
+  ideaSections: SectionMap;
+  conversation: typeof chatMessages.$inferSelect[];
+}) {
+  const transcript = formatTranscript(conversation);
+  if (!transcript) {
+    return undefined;
+  }
+
+  const input: OpenAIResponseInput = [
+    {
+      role: "system",
+      type: "message",
+      content: [
+        "You are a staff product engineer who turns structured interviews into developer-ready specifications.",
+        "Write Markdown with sections for Summary, Requirements, Architecture, Data Handling, Error Handling, Testing Plan, Risks, and Definition of Done.",
+        "Reference the Problem, Audience, Platform, Core Flow, and MVP Features from the intake one-pager so downstream stages stay aligned.",
+        "Only include information that appears in the transcript or the intake doc; if something is missing, call it out as a follow-up item.",
+        "Never mention transcripts, chat logs, or session IDs."
+      ].join("\n")
+    },
+    {
+      role: "user",
+      type: "message",
+      content: [
+        "IDEA ONE PAGER:",
+        ideaDoc.trim() || "idea_one_pager.md was empty during this session.",
+        "",
+        "SPEC INTERVIEW TRANSCRIPT:",
+        transcript
+      ].join("\n")
+    },
+    {
+      role: "user",
+      type: "message",
+      content: SPEC_COMPILE_PROMPT
+    }
+  ];
+
+  const response = await generateResponse({ input });
+  const doc = collectResponseText(response)?.trim();
+  if (!doc) {
+    return undefined;
+  }
+  return ensureSpecStructure(doc, ideaSections);
+}
+
+function ensureSpecStructure(content: string, intakeSections: SectionMap) {
+  let result = content.trim();
+  if (!/^#\s+/m.test(result)) {
+    result = `# Functional Spec\n\n${result}`;
+  }
+  if (!/definition\s+of\s+done/i.test(result)) {
+    result = `${result.trim()}\n\n## Definition of Done\n${DEFAULT_SPEC_DEFINITION_OF_DONE}\n`;
+  }
+  if (!/intake reference/i.test(result)) {
+    result = `${result.trim()}\n\n## Intake Reference\n${formatIntakeReference(intakeSections)}\n`;
+  }
+  return result.trim() + "\n";
+}
+
+function formatIntakeReference(sections: SectionMap) {
+  const entries = [
+    ["Problem", summarizeIntakeSection(sections, "Problem", "Document the user pain that sparked this build.")] as const,
+    ["Audience", summarizeIntakeSection(sections, "Audience", "Call out the ideal users/operators for this workflow.")] as const,
+    ["Platform", summarizeIntakeSection(sections, "Platform", "Note the primary surfaces (web, mobile, CLI, etc.).")] as const,
+    ["Core Flow", summarizeIntakeSection(sections, "Core Flow", "Outline the journey from intake through export.")],
+    ["MVP Features", summarizeIntakeSection(sections, "MVP Features", "List the must-have capabilities for v1.")]
+  ];
+  return entries.map(([label, value]) => `- **${label}:** ${value}`).join("\n");
+}
+
+function summarizeIntakeSection(sections: SectionMap, key: string, fallback: string) {
+  const value = sections[key];
+  if (value && value.trim().length > 0) {
+    return condense(value);
+  }
+  return fallback;
 }
 
 function buildDesignPrompt(specSections: SectionMap) {
@@ -536,17 +621,16 @@ function buildPromptPlanDoc(specContent: string, designPrompt?: string, designFi
   ].join("\n\n");
 }
 
-function buildAgentsDoc(docsContent: { idea: string; onePager: string; spec: string; promptPlan: string }) {
+function buildAgentsDoc(docsContent: { ideaOnePager: string; spec: string; promptPlan: string }) {
   const docSummaries = [
-    ["idea.md", docsContent.idea],
-    ["idea_one_pager.md", docsContent.onePager],
+    ["idea_one_pager.md", docsContent.ideaOnePager],
     ["spec.md", docsContent.spec],
     ["prompt_plan.md", docsContent.promptPlan]
   ]
     .map(([name, content]) => `- \`${name}\` — ${summarizeForAgents(content)}`)
     .join("\n");
 
-  const overview = condense(docsContent.spec || docsContent.promptPlan || docsContent.onePager);
+  const overview = condense(docsContent.spec || docsContent.promptPlan || docsContent.ideaOnePager);
   const checklist = ["- [ ] Review prompt_plan.md TODOs", "- [ ] Upload designs if required", "- [ ] Run pnpm test"].join(
     "\n"
   );

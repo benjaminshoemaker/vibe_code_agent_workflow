@@ -5,7 +5,7 @@ describe("export manifest", () => {
   it("is deterministic regardless of input order", () => {
     const docsA = [
       { name: "spec.md", content: "Spec" },
-      { name: "idea.md", content: "Idea" }
+      { name: "idea_one_pager.md", content: "Idea" }
     ];
     const docsB = [...docsA].reverse();
 
@@ -22,7 +22,6 @@ describe("export manifest", () => {
     expect({ ...m1, generated_at: "t" }).toEqual({ ...m2, generated_at: "t" });
 
     // Verify sha256 computed for docs matches helper
-    expect(m1.docs.find((d) => d.name === "idea.md")!.sha256).toBe(sha256String("Idea"));
+    expect(m1.docs.find((d) => d.name === "idea_one_pager.md")!.sha256).toBe(sha256String("Idea"));
   });
 });
-

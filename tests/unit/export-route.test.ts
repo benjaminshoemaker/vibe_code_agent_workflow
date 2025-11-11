@@ -29,7 +29,7 @@ describe("/api/export/zip", () => {
     await db
       .update(docs)
       .set({ content: "# Idea\nHello" })
-      .where(and(eq(docs.sessionId, sessionId), eq(docs.name, "idea.md" as any)));
+      .where(and(eq(docs.sessionId, sessionId), eq(docs.name, "idea_one_pager.md" as any)));
 
     const img = Buffer.from([0, 1, 2, 3, 4, 5]);
     const sha = createHash("sha256").update(img).digest("hex");
@@ -57,8 +57,8 @@ describe("/api/export/zip", () => {
     expect(Array.isArray(manifest.designs)).toBe(true);
 
     // docs present
-    expect(files.has("idea.md")).toBe(true);
-    expect(files.get("idea.md")!.toString("utf8")).toContain("Hello");
+    expect(files.has("idea_one_pager.md")).toBe(true);
+    expect(files.get("idea_one_pager.md")!.toString("utf8")).toContain("Hello");
 
     // design present under designs/
     expect(files.has("designs/1-Landing.png")).toBe(true);

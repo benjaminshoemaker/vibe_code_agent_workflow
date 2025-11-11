@@ -269,7 +269,7 @@ Integration: streaming deltas; timeout path; 499 mapping.
 Create stage orchestrator using LangGraph.
 
 Tasks
-1) Nodes: intake, one_pager, spec, design, prompt_plan, agents, export.
+1) Nodes: intake, spec, design, prompt_plan, agents, export.
 2) Implement per-stage LLM call budget: allow ≤4 total calls (generation + validation combined), thereafter emit stage.needs_more.
 3) Re-ingest policy: refresh docs and /designs/ index at stage start and immediately before validation.
 4) Emit events suitable for SSE: assistant.delta, doc.updated, stage.ready, stage.needs_more.
@@ -296,8 +296,7 @@ Unit: transitions; budget enforcement triggers `stage.needs_more` after 4 total 
 Implement minimal validators per stage and wire /api/stages/:stage/approve.
 
 Rules
-- intake: idea.md exists and non-empty.
-- one_pager: presence-only sections (Problem, Audience, Platform, Core Flow, MVP Features).
+- intake: idea_one_pager.md exists with Problem, Audience, Platform, Core Flow, MVP Features.
 - spec: non-empty and coherent with prior docs; includes "Definition of Done".
 - design: /designs/ index non-empty.
 - prompt_plan: file exists.
@@ -456,6 +455,8 @@ Renders roles; sends message.
 - [x] Install ChatKit
 - [x] Replace custom chat panel
 - [x] Tests
+- [x] Stage-specific instructions strip above the Chat assistant label
+- [x] Remove duplicate stage pill above the chat assistant when instructions are present
 
 ---
 
@@ -493,24 +494,22 @@ E2E: fake events drive UI states; verify POST streaming works.
 Implement stage writers.
 
 Tasks
-1) intake -> idea.md via iterative Q&A, one question at a time.
-2) one_pager -> idea_one_pager.md; on validator fail propose trivial patch then re-validate.
-3) spec -> spec.md with a concise "Definition of Done".
-4) design -> design_prompt.md (not exported).
-5) prompt_plan -> prompt_plan.md using spec.md and /designs/ index if available, include per-step prompts and inline TODO checkboxes.
-6) agents -> AGENTS.md including required "Agent responsibility" section verbatim.
-7) Emit doc.updated events on writes.
+1) intake -> idea_one_pager.md via iterative Q&A, one question at a time.
+2) spec -> spec.md with a concise "Definition of Done".
+3) design -> design_prompt.md (not exported).
+4) prompt_plan -> prompt_plan.md using spec.md and /designs/ index if available, include per-step prompts and inline TODO checkboxes.
+5) agents -> AGENTS.md including required "Agent responsibility" section verbatim.
+6) Emit doc.updated events on writes.
 ```
 
 **Expected artifacts**  
 Stage handlers that persist docs.
 
 **Tests**  
-Integration: intake → one_pager → spec produces non-empty docs.
+Integration: intake → spec produces non-empty docs.
 
 **TODO**
 - [x] Intake
-- [x] One-pager (with trivial patch)
 - [x] Spec (with DoD)
 - [x] Design prompt
 - [x] Prompt plan
@@ -518,7 +517,7 @@ Integration: intake → one_pager → spec produces non-empty docs.
 - [x] doc.updated emits
 - [x] Tests
 - [x] Manual QA verified
-- [x] Intake writer now summarizes the full interview (Problem/Audience/Platform/Core Flow/MVP) instead of echoing the last reply when drafting `idea.md`
+- [x] Intake writer now summarizes the full interview (Problem/Audience/Platform/Core Flow/MVP) instead of echoing the last reply when drafting `idea_one_pager.md`
 
 ---
 
@@ -687,7 +686,7 @@ Deferred per user request (skip Step 23 for now). Tasks remain queued with the `
 Add Playwright scenarios for the full flow and stabilize.
 
 Scenarios
-1) Start → Intake → One-Pager → Spec (approve each).
+1) Start → Intake → Spec (approve each).
 2) Upload designs ZIP; approve Design.
 3) Generate prompt_plan.md; approve.
 4) Generate AGENTS.md; approve.
@@ -712,6 +711,52 @@ All acceptance criteria pass.
 - [x] Happy-path test
 - [x] Stabilize SSE waits
 - [x] Finalize unit/integration coverage
+
+---
+
+## Step 26 — Spec-stage interview + READY flag
+
+**Prompt**
+```text
+Mirror the intake experience for the spec stage. As soon as spec.md becomes the active document, greet the user with “Thank you for providing idea_one_pager.md. I'm going to walk you through questions to create a developer-ready specification.” Then interrogate them one question at a time using idea_one_pager.md as the seed input, skipping anything you can already infer. When the operator explicitly confirms they're ready, emit READY_TO_COMPILE_SPEC so the orchestrator can generate spec.md from the full transcript.
+```
+
+**Expected artifacts**  
+- Spec-stage chat system prompt with the greeting, one-question-at-a-time instructions, and inline idea_one_pager context.  
+- `/api/chat` gating that defers the spec writer until `READY_TO_COMPILE_SPEC`, strips the flag from the stream, and mirrors the intake bridge semantics.  
+- `runSpecStage` that compiles spec.md from the spec transcript using the provided “Now that we've wrapped up…” prompt, with a deterministic fallback that always appends Definition of Done and Intake Reference summaries.
+
+**Tests**  
+- `pnpm vitest run tests/unit/chat-route.test.ts tests/unit/stage-writers.test.ts`
+
+**TODO**
+- [x] Seed spec-stage chats with idea_one_pager.md + greeting so the assistant drives the interview one question at a time.
+- [x] Gate the spec orchestrator on `READY_TO_COMPILE_SPEC`, strip the flag from SSE output, and mirror the intake bridge logic.
+- [x] Compile spec.md from the recorded transcript via the final compile prompt, falling back to the deterministic builder with Definition of Done + Intake Reference.
+- [x] Unit tests for the spec chat bridge and stage writer prompt.
+- [x] Auto-trigger the spec interview chat immediately after intake approval so the assistant greets the user without extra clicks.
+
+---
+
+## Step 27 — Intake confirmation + early drafting override
+
+**Prompt**
+```text
+Reinforce that the intake assistant must always ask for approval before drafting idea_one_pager.md, emit READY_TO_DRAFT when it asks, and only proceed once the human explicitly says to draft (though the human can request a draft at any time, even before the flag). Update the backend so RUN_STAGE is triggered by the human’s message instead of the assistant’s flag, and add heuristics for early “draft it now” requests plus simple “yes” confirmations right after the READY prompt.
+```
+
+**Expected artifacts**  
+- Updated intake prompt instructions that separate the “ready” notification from the actual drafting trigger.  
+- `/api/chat` logic that looks at the latest user message to decide when to invoke the intake writer (supporting both confirmation replies and imperative “draft it now” requests).  
+- Regression tests that prove drafts don’t start until the user approves, and that explicit “draft it now” requests work even before READY_TO_DRAFT.
+
+**Tests**  
+- `pnpm vitest run tests/unit/chat-route.test.ts`
+
+**TODO**
+- [x] Refresh intake instructions so READY_TO_DRAFT just signals the prompt, not auto-drafting.
+- [x] Trigger the intake writer only when the user confirms (or explicitly commands a draft) by inspecting their latest chat message.
+- [x] Cover the new confirmation/override paths in `tests/unit/chat-route.test.ts`.
 
 ---
 

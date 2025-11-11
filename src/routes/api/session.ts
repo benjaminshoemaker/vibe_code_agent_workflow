@@ -22,7 +22,6 @@ const sessionRoutes: FastifyPluginCallback = (app, _opts, done) => {
         sessionId,
         currentStage: "intake",
         approvedIntake: false,
-        approvedOnePager: false,
         approvedSpec: false,
         approvedDesign: false,
         approvedPromptPlan: false,
@@ -86,7 +85,6 @@ const sessionRoutes: FastifyPluginCallback = (app, _opts, done) => {
       current_stage: session.currentStage,
       approved: {
         intake: !!session.approvedIntake,
-        one_pager: !!session.approvedOnePager,
         spec: !!session.approvedSpec,
         design: !!session.approvedDesign,
         prompt_plan: !!session.approvedPromptPlan,

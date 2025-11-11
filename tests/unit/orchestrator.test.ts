@@ -41,7 +41,7 @@ describe("LangGraph stage orchestrator", () => {
 
     const result = await runStage({
       sessionId: "sess-2",
-      stage: "one_pager",
+      stage: "spec",
       driver: exhaustingDriver
     });
 
@@ -57,7 +57,6 @@ async function seedSession() {
     sessionId,
     currentStage: "intake",
     approvedIntake: false,
-    approvedOnePager: false,
     approvedSpec: false,
     approvedDesign: false,
     approvedPromptPlan: false,

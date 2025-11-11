@@ -24,7 +24,7 @@ SESSION_ID=$SESSION_ID pnpm tsx --eval "
   import { runStage } from './src/services/orchestrator';
   (async () => {
     const id = process.env.SESSION_ID!;
-    for (const stage of ['intake','one_pager','spec'] as const) {
+    for (const stage of ['intake','spec'] as const) {
       const events: string[] = [];
       const res = await runStage({ sessionId: id, stage, onEvent: (e) => { console.log('[event]', e.event); events.push(e.event); } });
       console.log('[stage]', stage, 'status=', res.status, 'events=', events.join(','));
@@ -40,13 +40,13 @@ Expected
 Use the docs API to inspect content:
 
 ```
-curl -s -b cookies.txt http://localhost:3000/api/docs/idea.md | jq -r '.content' | sed -n '1,80p'
+curl -s -b cookies.txt http://localhost:3000/api/docs/idea_one_pager.md | jq -r '.content' | sed -n '1,80p'
 curl -s -b cookies.txt http://localhost:3000/api/docs/idea_one_pager.md | rg -n "^#|^## (Problem|Audience|Platform|Core Flow|MVP Features)"
 curl -s -b cookies.txt http://localhost:3000/api/docs/spec.md | rg -n "^#|Definition of Done"
 ```
 
 Expected
-- `idea.md` contains headings like `## Problem`, `## Audience`, etc.
+- `idea_one_pager.md` contains headings like `## Problem`, `## Audience`, etc.
 - `idea_one_pager.md` contains the presence‑check sections.
 - `spec.md` includes a `Definition of Done` section.
 
@@ -112,8 +112,8 @@ Expected
 
 ## 7) UI spot‑checks (optional)
 1. Open `http://localhost:3000/app?resume=1`.
-2. Left rail shows documents for the current stage (Intake → `idea.md`).
-3. Select the doc and switch between Preview/Edit; content for `idea.md` reflects writer output.
+2. Left rail shows documents for the current stage (Intake → `idea_one_pager.md`).
+3. Select the doc and switch between Preview/Edit; content for `idea_one_pager.md` reflects writer output.
 
 ## Exit criteria
 - Writers produce non‑empty docs for all stages and include required sections.

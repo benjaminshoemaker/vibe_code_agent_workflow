@@ -1,11 +1,11 @@
 # Agent‑Ready Planner — v1 Technical Specification (`spec.md`)
 
 ## 1. Overview
-**Goal.** Turn a raw idea into five agent‑ready Markdown docs plus a design bundle, with gated stages and human approval.
+**Goal.** Turn a raw idea into four agent‑ready Markdown docs plus a design bundle, with gated stages and human approval.
 
 **Audience.** Solo founders planning to use AI coding agents or contractors.
 
-**Stage graph.** `intake → one_pager → spec → design → prompt_plan → agents → export`
+**Stage graph.** `intake → spec → design → prompt_plan → agents → export`
 
 **Agents.**
 - **AI Orchestrator** (in‑app): validates stage gates, proposes patches, writes section updates.
@@ -41,9 +41,8 @@
 ```ts
 // sessions
 session_id TEXT PRIMARY KEY,
-current_stage TEXT CHECK(current_stage IN ('intake','one_pager','spec','design','prompt_plan','agents','export')) NOT NULL,
+current_stage TEXT CHECK(current_stage IN ('intake','spec','design','prompt_plan','agents','export')) NOT NULL,
 approved_intake INTEGER DEFAULT 0,
-approved_one_pager INTEGER DEFAULT 0,
 approved_spec INTEGER DEFAULT 0,
 approved_design INTEGER DEFAULT 0,
 approved_prompt_plan INTEGER DEFAULT 0,
@@ -53,7 +52,7 @@ last_activity DATETIME NOT NULL
 
 // docs
 session_id TEXT NOT NULL,
-name TEXT NOT NULL,              // 'idea.md' | 'idea_one_pager.md' | 'spec.md' | 'prompt_plan.md' | 'AGENTS.md'
+name TEXT NOT NULL,              // 'idea_one_pager.md' | 'spec.md' | 'prompt_plan.md' | 'AGENTS.md'
 content TEXT NOT NULL,
 approved INTEGER DEFAULT 0,
 updated_at DATETIME NOT NULL,
@@ -83,7 +82,7 @@ PRIMARY KEY(session_id, path)
 - **Persistence:** autosave after each chat, doc save, ZIP upload. Chat retention target is 30 days, but enforcement/purge logic is deferred (see §13).
 
 ### 3.3 Documents
-- Names: `idea.md`, `idea_one_pager.md`, `spec.md`, `prompt_plan.md`, `AGENTS.md`.
+- Names: `idea_one_pager.md`, `spec.md`, `prompt_plan.md`, `AGENTS.md`.
 - No versioning. Overwrite on save. `approved` flag per doc.
 
 ---
@@ -137,15 +136,9 @@ PRIMARY KEY(session_id, path)
 
 **intake**
 - **Input:** initial idea text.
-- **Prompt:** collects Problem, Audience, Platform, Core Flow, MVP Features, optional Non‑Goals; one question at a time; outputs `idea.md`.
-- **Exit gate:** `idea.md` non‑empty and coherent.
+- **Prompt:** collects Problem, Audience, Platform, Core Flow, MVP Features, optional Non‑Goals; one question at a time; outputs `idea_one_pager.md`.
+- **Exit gate:** `idea_one_pager.md` non‑empty with all required sections.
 - **Failure:** ask targeted follow‑ups (≤4 calls), then `stage.needs_more`.
-
-**one_pager**
-- **Input:** `idea.md`.
-- **Prompt:** iterative Q&A; outputs `idea_one_pager.md`. No elevator pitch required.
-- **Exit gate:** presence‑only for Problem, Audience, Platform, Core Flow, MVP Features; optional Non‑Goals, Outcome; coherence check.
-- **Failure:** orchestrator proposes a one‑line patch; re‑validate.
 
 **spec**
 - **Input:** `idea_one_pager.md`.
@@ -164,7 +157,7 @@ PRIMARY KEY(session_id, path)
 - **Exit gate:** file exists (presence‑only) + human approval.
 
 **agents**
-- **Input:** `prompt_plan.md`, `spec.md`, `idea.md`, `idea_one_pager.md`, `/designs/` index.
+- **Input:** `prompt_plan.md`, `spec.md`, `idea_one_pager.md`, `/designs/` index.
 - **Prompt:** outputs `AGENTS.md`, includes required blocks verbatim.
 - **Exit gate:** file exists, includes doc descriptions and required **Agent responsibility** section verbatim; coherence check.
 
@@ -194,7 +187,6 @@ PRIMARY KEY(session_id, path)
 
 ### 7.1 Layout (flat)
 ```
-idea.md
 idea_one_pager.md
 spec.md
 prompt_plan.md
@@ -208,7 +200,6 @@ manifest.json
 {
   "generated_at": "ISO-8601 UTC timestamp",
   "docs": [
-    {"name":"idea.md","sha256":"..."},
     {"name":"idea_one_pager.md","sha256":"..."},
     {"name":"spec.md","sha256":"..."},
     {"name":"prompt_plan.md","sha256":"..."},
@@ -313,7 +304,7 @@ frame-ancestors 'none'
 - Security: Markdown renderer enforces CSP and sandbox; images constrained.
 
 ### 11.2 Integration
-- Happy path `idea → one_pager → spec → design → prompt_plan → agents → export`.
+- Happy path `intake → spec → design → prompt_plan → agents → export`.
 - Seeded determinism: fixture idea yields stable outputs within token/time budgets.
 - Design upload: replace policy, sha256 computed, index exposed.
 

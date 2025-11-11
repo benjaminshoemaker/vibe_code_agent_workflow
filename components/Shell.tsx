@@ -7,7 +7,7 @@ import ExportPanel from "./ExportPanel";
 import MarkdownEditor from "./MarkdownEditor";
 import MarkdownPreview from "./MarkdownPreview";
 
-type StageSlug = "intake" | "one_pager" | "spec" | "design" | "prompt_plan" | "agents" | "export";
+type StageSlug = "intake" | "spec" | "design" | "prompt_plan" | "agents" | "export";
 
 type SessionResponse = {
   current_stage: StageSlug;
@@ -16,25 +16,23 @@ type SessionResponse = {
   designs_count: number;
 };
 
-type DocName = "idea.md" | "idea_one_pager.md" | "spec.md" | "prompt_plan.md" | "AGENTS.md";
+type DocName = "idea_one_pager.md" | "spec.md" | "prompt_plan.md" | "AGENTS.md";
+
+const docStageMap: Record<DocName, StageSlug> = {
+  "idea_one_pager.md": "intake",
+  "spec.md": "spec",
+  "prompt_plan.md": "prompt_plan",
+  "AGENTS.md": "agents"
+};
 
 const stageMeta: Array<{ slug: StageSlug; label: string }> = [
   { slug: "intake", label: "Intake" },
-  { slug: "one_pager", label: "One-Pager" },
   { slug: "spec", label: "Spec" },
   { slug: "design", label: "Design" },
   { slug: "prompt_plan", label: "Prompt Plan" },
   { slug: "agents", label: "Agents" },
   { slug: "export", label: "Export" }
 ];
-
-const docStageMap: Record<DocName, StageSlug> = {
-  "idea.md": "intake",
-  "idea_one_pager.md": "one_pager",
-  "spec.md": "spec",
-  "prompt_plan.md": "prompt_plan",
-  "AGENTS.md": "agents"
-};
 
 const stageOrder = stageMeta.map((stage) => stage.slug);
 
@@ -44,13 +42,12 @@ function docsForStage(stage: StageSlug, available: string[]): DocName[] {
 }
 
 const stageDocOrder: Array<{ stage: StageSlug; docs: DocName[] }> = [
-  { stage: "intake", docs: ["idea.md"] },
-  { stage: "one_pager", docs: ["idea.md", "idea_one_pager.md"] },
-  { stage: "spec", docs: ["idea.md", "idea_one_pager.md", "spec.md"] },
-  { stage: "design", docs: ["idea.md", "idea_one_pager.md", "spec.md"] },
-  { stage: "prompt_plan", docs: ["idea.md", "idea_one_pager.md", "spec.md", "prompt_plan.md"] },
-  { stage: "agents", docs: ["idea.md", "idea_one_pager.md", "spec.md", "prompt_plan.md", "AGENTS.md"] },
-  { stage: "export", docs: ["idea.md", "idea_one_pager.md", "spec.md", "prompt_plan.md", "AGENTS.md"] }
+  { stage: "intake", docs: ["idea_one_pager.md"] },
+  { stage: "spec", docs: ["idea_one_pager.md", "spec.md"] },
+  { stage: "design", docs: ["idea_one_pager.md", "spec.md"] },
+  { stage: "prompt_plan", docs: ["idea_one_pager.md", "spec.md", "prompt_plan.md"] },
+  { stage: "agents", docs: ["idea_one_pager.md", "spec.md", "prompt_plan.md", "AGENTS.md"] },
+  { stage: "export", docs: ["idea_one_pager.md", "spec.md", "prompt_plan.md", "AGENTS.md"] }
 ];
 
 type StageStatus = "Draft" | "Ready" | "Approved";

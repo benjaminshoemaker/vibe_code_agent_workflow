@@ -2,15 +2,7 @@ import Link from "next/link";
 import type { Route } from "next";
 import StartSessionButton from "../components/StartSessionButton";
 
-const STAGES = [
-  "intake",
-  "one_pager",
-  "spec",
-  "design",
-  "prompt_plan",
-  "agents",
-  "export"
-] as const;
+const STAGES = ["intake", "spec", "design", "prompt_plan", "agents", "export"] as const;
 
 const SNIPPETS: Array<{ title: string; filename: string; content: string }> = [
   {

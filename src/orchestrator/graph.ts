@@ -29,15 +29,7 @@ const StageState = Annotation.Root({
   })
 });
 
-export const STAGES: StageName[] = [
-  "intake",
-  "one_pager",
-  "spec",
-  "design",
-  "prompt_plan",
-  "agents",
-  "export"
-] as const;
+export const STAGES: StageName[] = ["intake", "spec", "design", "prompt_plan", "agents", "export"] as const;
 
 const STAGE_GRAPH_NODES: Array<typeof START | StageName> = [START, ...STAGES];
 

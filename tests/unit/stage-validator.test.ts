@@ -20,30 +20,15 @@ describe("stage validators", () => {
   });
 
   describe("intake", () => {
-    it("fails when idea.md is empty", async () => {
+    it("fails when idea_one_pager.md is empty", async () => {
       const result = await validateStage(sessionId, "intake");
       expect(result.ok).toBe(false);
-      expect(result.reasons[0]).toContain("idea.md");
+      expect(result.reasons[0]).toContain("idea_one_pager.md");
     });
 
-    it("passes when idea.md has content", async () => {
-      await setDocContent(sessionId, "idea.md", "# Idea");
-      const result = await validateStage(sessionId, "intake");
-      expect(result.ok).toBe(true);
-    });
-  });
-
-  describe("one_pager", () => {
-    it("fails when required sections are missing", async () => {
-      await setDocContent(sessionId, "idea_one_pager.md", "## Problem\nDetails");
-      const result = await validateStage(sessionId, "one_pager");
-      expect(result.ok).toBe(false);
-      expect(result.reasons[0]).toContain("Missing sections");
-    });
-
-    it("passes when all sections exist", async () => {
+    it("passes when idea_one_pager.md has content", async () => {
       await setDocContent(sessionId, "idea_one_pager.md", requiredSectionsContent());
-      const result = await validateStage(sessionId, "one_pager");
+      const result = await validateStage(sessionId, "intake");
       expect(result.ok).toBe(true);
     });
   });
@@ -131,7 +116,6 @@ async function createSession(overrides: Partial<typeof sessions.$inferInsert> = 
     sessionId,
     currentStage: "intake",
     approvedIntake: false,
-    approvedOnePager: false,
     approvedSpec: false,
     approvedDesign: false,
     approvedPromptPlan: false,
@@ -170,7 +154,6 @@ async function addDesign(sessionId: string) {
 }
 
 async function populateAllDocs(sessionId: string) {
-  await setDocContent(sessionId, "idea.md", "# Idea");
   await setDocContent(sessionId, "idea_one_pager.md", requiredSectionsContent());
   await setDocContent(
     sessionId,

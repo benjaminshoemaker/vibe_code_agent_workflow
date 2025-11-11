@@ -4,7 +4,8 @@ import { and, desc, eq } from "drizzle-orm";
 import { createApp, type NextRequestHandler } from "../../src/server";
 import { CHAT_KEEPALIVE_MS } from "../../src/routes/api/chat";
 import { db } from "../../src/db/client";
-import { chatMessages } from "../../src/db/schema";
+import { chatMessages, docs, sessions } from "../../src/db/schema";
+import type { DocName, StageName } from "../../src/db/schema";
 
 vi.mock("../../src/libs/openai", () => {
   const generateResponse = vi.fn();
@@ -230,29 +231,46 @@ describe("/api/chat SSE", () => {
 });
 
 describe("intake readiness gating", () => {
-  it("defers orchestrator bridge until READY_TO_DRAFT appears", async () => {
-    mockOpenAIResponseLegacy("What problem does it solve?");
+  it("waits for user confirmation even after READY_TO_DRAFT", async () => {
     const cookie = await createSession();
+    const sessionId = extractSessionId(cookie as string);
     const originalEnv = process.env.NODE_ENV;
     Reflect.set(process.env, "NODE_ENV", "development");
 
     try {
-      const response = await app.inject({
+      mockOpenAIResponseLegacy("We gathered the essentials. Want me to draft it?\nREADY_TO_DRAFT");
+      const initial = await app.inject({
         method: "POST",
         url: "/api/chat",
         headers: { cookie },
-        payload: { message: "Scheduling assistant.", stage: "intake" }
+        payload: { message: "We covered everything.", stage: "intake" }
       });
 
-      expect(response.body).not.toContain("event: stage.ready");
-      expect(response.body).not.toContain("event: doc.updated");
+      expect(initial.body).not.toContain("event: doc.updated");
+      expect(initial.body).not.toContain("event: stage.ready");
+
+      mockOpenAIResponseLegacy("On it. I'll compile what we have.");
+      const confirm = await app.inject({
+        method: "POST",
+        url: "/api/chat",
+        headers: { cookie },
+        payload: { message: "Yes, please draft the one pager.", stage: "intake" }
+      });
+
+      expect(confirm.body).toContain("event: doc.updated");
+      expect(confirm.body).toContain("event: stage.ready");
     } finally {
       Reflect.set(process.env, "NODE_ENV", originalEnv);
     }
+
+    const ideaDoc = await db.query.docs.findFirst({
+      where: (table) => and(eq(table.sessionId, sessionId), eq(table.name, "idea_one_pager.md"))
+    });
+    expect(ideaDoc?.content).toContain("We covered everything");
   });
 
-  it("runs intake orchestrator and updates idea.md once READY_TO_DRAFT is emitted", async () => {
-    mockOpenAIResponseLegacy("Great, I can draft now.\nREADY_TO_DRAFT");
+  it("allows drafting before READY_TO_DRAFT when the user requests it", async () => {
+    mockOpenAIResponseLegacy("I still have more questions, but here's another thought.");
     const cookie = await createSession();
     const sessionId = extractSessionId(cookie as string);
     const originalEnv = process.env.NODE_ENV;
@@ -263,21 +281,87 @@ describe("intake readiness gating", () => {
         method: "POST",
         url: "/api/chat",
         headers: { cookie },
-        payload: { message: "A co-pilot for planning climate hackathons.", stage: "intake" }
+        payload: { message: "Draft the one pager now, please.", stage: "intake" }
       });
 
       expect(response.body).toContain("event: doc.updated");
       expect(response.body).toContain("event: stage.ready");
-      expect(response.body).not.toContain("READY_TO_DRAFT");
     } finally {
       Reflect.set(process.env, "NODE_ENV", originalEnv);
     }
 
     const ideaDoc = await db.query.docs.findFirst({
-      where: (table) => and(eq(table.sessionId, sessionId), eq(table.name, "idea.md"))
+      where: (table) => and(eq(table.sessionId, sessionId), eq(table.name, "idea_one_pager.md"))
     });
+    expect(ideaDoc?.content).toContain("one pager");
+  });
+});
 
-    expect(ideaDoc?.content).toContain("climate hackathons");
+describe("spec readiness gating", () => {
+  it("waits for user confirmation before compiling spec", async () => {
+    const cookie = await createSession();
+    const sessionId = extractSessionId(cookie as string);
+    await setSessionStage(sessionId, "spec");
+    await setDocContent(sessionId, "idea_one_pager.md", seededOnePager());
+    const originalEnv = process.env.NODE_ENV;
+    Reflect.set(process.env, "NODE_ENV", "development");
+
+    try {
+      mockOpenAIResponseLegacy("I can compile the spec when you give the go-ahead.\nREADY_TO_COMPILE_SPEC");
+      const initial = await app.inject({
+        method: "POST",
+        url: "/api/chat",
+        headers: { cookie },
+        payload: { message: "That covers it.", stage: "spec" }
+      });
+      expect(initial.body).not.toContain("event: stage.ready");
+      expect(initial.body).not.toContain("event: doc.updated");
+
+      mockOpenAIResponseLegacy("Done. I've captured everything we discussed.");
+      const confirm = await app.inject({
+        method: "POST",
+        url: "/api/chat",
+        headers: { cookie },
+        payload: { message: "Yes, compile the spec now.", stage: "spec" }
+      });
+      expect(confirm.body).toContain("event: doc.updated");
+      expect(confirm.body).toContain("event: stage.ready");
+    } finally {
+      Reflect.set(process.env, "NODE_ENV", originalEnv);
+    }
+
+    const specDoc = await db.query.docs.findFirst({
+      where: (table, { and }) => and(eq(table.sessionId, sessionId), eq(table.name, "spec.md"))
+    });
+    expect(specDoc?.content).toContain("Functional Spec");
+  });
+
+  it("compiles spec.md early when the user explicitly asks", async () => {
+    const cookie = await createSession();
+    const sessionId = extractSessionId(cookie as string);
+    await setSessionStage(sessionId, "spec");
+    await setDocContent(sessionId, "idea_one_pager.md", seededOnePager());
+    const originalEnv = process.env.NODE_ENV;
+    Reflect.set(process.env, "NODE_ENV", "development");
+
+    try {
+      mockOpenAIResponseLegacy("Let's keep exploring a few details.");
+      const response = await app.inject({
+        method: "POST",
+        url: "/api/chat",
+        headers: { cookie },
+        payload: { message: "Please compile the spec now even if it's rough.", stage: "spec" }
+      });
+      expect(response.body).toContain("event: doc.updated");
+      expect(response.body).toContain("event: stage.ready");
+    } finally {
+      Reflect.set(process.env, "NODE_ENV", originalEnv);
+    }
+
+    const specDoc = await db.query.docs.findFirst({
+      where: (table, { and }) => and(eq(table.sessionId, sessionId), eq(table.name, "spec.md"))
+    });
+    expect(specDoc?.content).toMatch(/Functional Spec/);
   });
 });
 
@@ -355,4 +439,37 @@ function extractSessionId(cookie: string) {
   const match = /sid=([^;]+)/.exec(cookie);
   expect(match).not.toBeNull();
   return match![1];
+}
+
+async function setSessionStage(sessionId: string, stage: StageName) {
+  await db.update(sessions).set({ currentStage: stage }).where(eq(sessions.sessionId, sessionId));
+}
+
+async function setDocContent(sessionId: string, name: DocName, content: string) {
+  await db
+    .update(docs)
+    .set({ content })
+    .where(and(eq(docs.sessionId, sessionId), eq(docs.name, name)));
+}
+
+function seededOnePager() {
+  return `# Idea Overview
+
+## Problem
+Specs need more detail.
+
+## Audience
+Implementers awaiting requirements.
+
+## Platform
+Responsive web.
+
+## Core Flow
+Interview → docs → approvals.
+
+## MVP Features
+Chat, docs, approvals.
+
+## Non-Goals
+Native mobile apps.`;
 }

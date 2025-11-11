@@ -10,6 +10,7 @@ import {
 } from "@chatscope/chat-ui-kit-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { streamChat } from "../lib/stream";
+import { getStageInstruction } from "../lib/stage-instructions";
 
 type Role = "user" | "assistant" | "orchestrator";
 
@@ -52,6 +53,10 @@ const roleMeta: Record<Role, RoleMeta> = {
   }
 };
 
+const AUTO_STAGE_PROMPTS: Record<string, string> = {
+  spec: "I've approved idea_one_pager.md. Please start the spec interview so we can document every requirement."
+};
+
 function RoleBadge({ role }: { role: Role }) {
   return (
     <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${roleMeta[role].badgeClass}`}>
@@ -79,6 +84,8 @@ export default function ChatPanel({ stage, className, onDocUpdated, onStageReady
   const requestInFlightRef = useRef(false);
   const streamingMessageIdRef = useRef<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
+  const autoPromptedRef = useRef<Record<string, boolean>>({});
+  const onSendRef = useRef<((text: string) => Promise<void> | void) | null>(null);
 
   useEffect(() => {
     return () => {
@@ -86,7 +93,8 @@ export default function ChatPanel({ stage, className, onDocUpdated, onStageReady
     };
   }, []);
 
-  const stageLabel = useMemo(() => stage.replace(/_/g, " " ), [stage]);
+  const stageLabel = useMemo(() => stage.replace(/_/g, " "), [stage]);
+  const stageInstruction = useMemo(() => getStageInstruction(stage), [stage]);
 
   const appendMessage = useCallback((role: Role, text: string) => {
     setMessages((prev) => [...prev, { id: crypto.randomUUID(), role, text, createdAt: Date.now() }]);
@@ -179,6 +187,10 @@ export default function ChatPanel({ stage, className, onDocUpdated, onStageReady
   );
 
   useEffect(() => {
+    onSendRef.current = (text: string) => onSend(text);
+  }, [onSend]);
+
+  useEffect(() => {
     const handler = (event: Event) => {
       const custom = event as CustomEvent<{
         type: "assistant.delta" | "doc.updated" | "stage.ready" | "stage.needs_more";
@@ -217,13 +229,34 @@ export default function ChatPanel({ stage, className, onDocUpdated, onStageReady
     return () => window.removeEventListener("chat.debug", handler as EventListener);
   }, [appendAssistantDelta, onDocUpdated, onStageReady]);
 
+  useEffect(() => {
+    const prompt = AUTO_STAGE_PROMPTS[stage];
+    if (!prompt) return;
+    if (autoPromptedRef.current[stage]) return;
+    if (requestInFlightRef.current) return;
+    autoPromptedRef.current[stage] = true;
+    const result = onSendRef.current?.(prompt);
+    if (result instanceof Promise) {
+      result.catch(() => {
+        autoPromptedRef.current[stage] = false;
+      });
+    }
+  }, [stage]);
+
   return (
-    <div className={`space-y-3 ${className ?? ""}`}>
+    <div data-testid="chat-panel" className={`space-y-3 ${className ?? ""}`}>
+      <div
+        data-testid="stage-instructions"
+        className="space-y-1.5 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3"
+      >
+        <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+          Guidance for {stageLabel}
+        </p>
+        <p className="text-sm font-semibold text-slate-800">{stageInstruction.title}</p>
+        <p className="text-sm text-slate-600">{stageInstruction.description}</p>
+      </div>
       <div className="flex items-center justify-between">
         <p className="text-sm font-semibold text-slate-700">Chat assistant</p>
-        <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium uppercase tracking-wide text-slate-500">
-          Stage: {stageLabel}
-        </span>
       </div>
       {notice ? (
         <div

@@ -4,7 +4,9 @@ import { createAbortController, generateResponse, type OpenAIResponseInput } fro
 import { SESSION_COOKIE_NAME } from "../../utils/session-cookie";
 import { runStage } from "../../services/orchestrator";
 import { db } from "../../db/client";
-import { chatMessages, stageNames, type StageName } from "../../db/schema";
+import { chatMessages, docs, stageNames, type StageName } from "../../db/schema";
+
+type ChatMessageRow = typeof chatMessages.$inferSelect;
 
 type ChatRequestBody = {
   message: string;
@@ -22,6 +24,8 @@ const CHAT_MINUTE_WINDOW_MS = 60_000;
 const CHAT_HOUR_LIMIT = 300;
 const CHAT_HOUR_WINDOW_MS = 3_600_000;
 const READY_TO_DRAFT_FLAG = "READY_TO_DRAFT";
+const READY_TO_COMPILE_SPEC_FLAG = "READY_TO_COMPILE_SPEC";
+const SPEC_GREETING = "Thank you for providing idea_one_pager.md. I'm going to walk you through questions to create a developer-ready specification.";
 const INTAKE_ASSISTANT_PROMPT = [
   "Ask me one question at a time so we can develop a one-pager for this idea. Each question should build on the previous ones, and the end goal is a one-pager description of the idea that I could pass to a product manager. We need to gather at least the following:",
   "- What problem does the app solve?",
@@ -32,10 +36,34 @@ const INTAKE_ASSISTANT_PROMPT = [
   "",
   "The user will provide an initial description of their app. Evaluate that, and then ask them one question at a time until we have enough detail to answer the questions above & create a one-pager description of the app. If you can infer an answer from the initial idea input or the conversation, no need to ask a question about it. Let's do this iteratively.",
   "",
-  "IMPORTANT: Once we have enough information, ask the user if they'd like you to draft the one-pager. If they confirm, you MUST end your reply with the exact text 'READY_TO_DRAFT' on its own line. Do NOT write the one-pager yourself - the system will automatically generate it.",
-  "",
+  "IMPORTANT:",
+  "- When you believe we have enough detail to draft, prompt the user for permission and end that message with the exact text 'READY_TO_DRAFT' on its own line.",
+  "- Never draft the one-pager yourself. Wait for the user to explicitly say they want the draft. Once they do, acknowledge it (even if they ask before you emit READY_TO_DRAFT) and move them toward approval.",
   READY_TO_DRAFT_FLAG
 ].join("\n");
+const STAGE_READY_FLAGS: Partial<Record<StageName, string>> = {
+  intake: READY_TO_DRAFT_FLAG,
+  spec: READY_TO_COMPILE_SPEC_FLAG
+};
+
+function buildSpecAssistantPrompt(ideaDoc?: string) {
+  const ideaSource = ideaDoc?.trim() ? ideaDoc.trim() : "idea_one_pager.md is empty. Ask clarifying questions so we can fill it in.";
+  return [
+    SPEC_GREETING,
+    "",
+    "Ask me one question at a time so we can develop a thorough, step-by-step spec for this idea. Each question should build on my previous answers, and our end goal is to have a detailed specification I can hand off to a developer. Let's do this iteratively and dig into every relevant detail. If you can infer an answer from the initial idea input, no need to ask a question about it. Remember, only one question at a time.",
+    "",
+    "Here's the idea:",
+    ideaSource,
+    "",
+    "Guidelines:",
+    "- Start your first reply with the greeting above, then dive into the first question.",
+    "- Only ask a new question if the idea or my latest answer doesn't already cover it.",
+    "- Keep referencing the idea input whenever it already answers the question.",
+    "- When you have enough detail to compile the spec, prompt the user for permission and end that prompt with 'READY_TO_COMPILE_SPEC' on its own line.",
+    "- Wait for the operator to explicitly say they want the spec compiled (they might do this before you emit the flag). Once they do, acknowledge it and move them toward hand-off. Do not write the spec inside the chat interface."
+  ].join("\n");
+}
 
 const chatRoutes: FastifyPluginCallback = (app, _opts, done) => {
   // Pre-lock concurrent chat streams as early as possible in the lifecycle
@@ -77,6 +105,7 @@ const chatRoutes: FastifyPluginCallback = (app, _opts, done) => {
     const validStage = (stageNames as readonly string[]).includes(stageParam)
       ? (stageParam as StageName)
       : undefined;
+    const stageReadyFlag = validStage ? STAGE_READY_FLAGS[validStage] : undefined;
     const userMessage = typeof request.body.message === "string" ? request.body.message : "";
 
     try {
@@ -153,8 +182,8 @@ const chatRoutes: FastifyPluginCallback = (app, _opts, done) => {
     request.raw.on("aborted", handleClientAbort);
 
     const enableBridge = process.env.NODE_ENV !== "test";
-    const deferIntakeBridge = enableBridge && validStage === "intake";
-    const runStageImmediately = enableBridge && !!validStage && validStage !== "intake";
+    const stageRequiresConfirmation = enableBridge && !!stageReadyFlag;
+    const runStageImmediately = enableBridge && !!validStage && !stageRequiresConfirmation;
 
     const startOrchestrator = () => {
       if (!enableBridge || !validStage) {
@@ -214,9 +243,25 @@ const chatRoutes: FastifyPluginCallback = (app, _opts, done) => {
         limit: 100 // Limit to last 100 messages to avoid token limits
       });
 
+      let specPrompt: string | undefined;
+      if (validStage === "spec") {
+        const ideaDoc = await db.query.docs.findFirst({
+          where: (table, { and, eq }) => and(eq(table.sessionId, sessionId), eq(table.name, "idea_one_pager.md")),
+          columns: { content: true }
+        });
+        specPrompt = buildSpecAssistantPrompt(ideaDoc?.content ?? "");
+      }
+
       const openAiInput: OpenAIResponseInput = [];
       if (validStage === "intake") {
         openAiInput.push({ role: "system", content: INTAKE_ASSISTANT_PROMPT, type: "message" });
+      }
+      if (validStage === "spec" && specPrompt) {
+        openAiInput.push({ role: "system", content: specPrompt, type: "message" });
+      }
+
+      if (stageRequiresConfirmation && validStage && shouldTriggerStageRun(validStage, allMessages, stageReadyFlag)) {
+        orchestratorPromise = startOrchestrator();
       }
 
       // Add all conversation history (this includes the message we just saved)
@@ -240,7 +285,7 @@ const chatRoutes: FastifyPluginCallback = (app, _opts, done) => {
         const segments = extractAssistantSegments(output);
         for (const segment of segments) {
           assistantTranscript += segment;
-          const outbound = stripReadyFlag(segment);
+          const outbound = stripReadyFlag(segment, stageReadyFlag);
           if (!reply.raw.closed && outbound) {
             reply.raw.write(formatEvent("assistant.delta", outbound));
           }
@@ -251,7 +296,7 @@ const chatRoutes: FastifyPluginCallback = (app, _opts, done) => {
         const fallbackSegments = extractOutputTextSegments(response);
         for (const segment of fallbackSegments) {
           assistantTranscript += segment;
-          const outbound = stripReadyFlag(segment);
+          const outbound = stripReadyFlag(segment, stageReadyFlag);
           if (!reply.raw.closed && outbound) {
             reply.raw.write(formatEvent("assistant.delta", outbound));
           }
@@ -272,9 +317,6 @@ const chatRoutes: FastifyPluginCallback = (app, _opts, done) => {
         }
       }
 
-      if (deferIntakeBridge && containsReadyFlag(assistantTranscript)) {
-        orchestratorPromise = startOrchestrator();
-      }
       await Promise.resolve(orchestratorPromise);
       closeStream();
     } catch (error: any) {
@@ -368,19 +410,66 @@ function getAssistantMessage(output: any): MessageLike | undefined {
   return undefined;
 }
 
-function containsReadyFlag(text: string) {
-  return text
-    .split(/\r?\n/)
-    .some((line) => line.trim() === READY_TO_DRAFT_FLAG);
-}
-
-function stripReadyFlag(text: string) {
-  const lines = text.split(/\r?\n/).filter((line) => line.trim() !== READY_TO_DRAFT_FLAG);
+function stripReadyFlag(text: string, flag?: string) {
+  if (!flag) return text;
+  const lines = text.split(/\r?\n/).filter((line) => line.trim() !== flag);
   if (lines.length === 0) {
     return "";
   }
   return lines.join("\n");
 }
+
+function shouldTriggerStageRun(stage: StageName, messages: ChatMessageRow[], readyFlag?: string) {
+  if (messages.length === 0) return false;
+  const last = messages[messages.length - 1];
+  if (!last || last.role !== "user") return false;
+  const text = normalizeUserText(last.content);
+  if (!text) return false;
+
+  if (isStrongDraftCommand(stage, text)) {
+    return true;
+  }
+
+  if (!readyFlag) return false;
+  if (!AFFIRMATIVE_RESPONSE_PATTERN.test(text)) {
+    return false;
+  }
+  return assistantRecentlyPrompted(messages.slice(0, -1), readyFlag);
+}
+
+function isStrongDraftCommand(stage: StageName, text: string) {
+  if (!DRAFT_VERB_PATTERN.test(text)) return false;
+  if (stage === "intake") {
+    return ONE_PAGER_PATTERN.test(text);
+  }
+  if (stage === "spec") {
+    return SPEC_PATTERN.test(text) || text.includes("spec md") || text.includes("spec doc");
+  }
+  return true;
+}
+
+function assistantRecentlyPrompted(messages: ChatMessageRow[], flag: string) {
+  for (let i = messages.length - 1; i >= 0; i -= 1) {
+    const msg = messages[i];
+    if (!msg) continue;
+    if (msg.role === "assistant") {
+      return msg.content?.includes(flag) ?? false;
+    }
+    if (msg.role === "user") {
+      continue;
+    }
+  }
+  return false;
+}
+
+function normalizeUserText(text?: string | null) {
+  return (text ?? "").trim().toLowerCase();
+}
+
+const DRAFT_VERB_PATTERN = /(draft|generate|write|create|produce|compile|make)/i;
+const ONE_PAGER_PATTERN = /(one[\s-]?pager|idea\s+one\s+pager|idea\s+doc|one\s+pager|idea\s+document|doc|document)/i;
+const SPEC_PATTERN = /(spec\b|specification|spec doc|spec md)/i;
+const AFFIRMATIVE_RESPONSE_PATTERN = /(\b(yes|yep|yeah|y|sure|ok|okay|sounds good|please do|do it|go ahead|absolutely|let's do it|please)\b)/i;
 
 function extractOutputTextSegments(response: any) {
   if (!Array.isArray(response?.output_text)) {

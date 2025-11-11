@@ -1,13 +1,12 @@
 # AGENTS.md
 
 ## Overview
-This repo turns a raw idea into five agent‑ready Markdown docs plus a design bundle, with gated stages and human approval.
+This repo turns a raw idea into four agent‑ready Markdown docs plus a design bundle, with gated stages and human approval.
 
-**Stage flow:** `intake → one_pager → spec → design → prompt_plan → agents → export`
+**Stage flow:** `intake → spec → design → prompt_plan → agents → export`
 
 ## Repository docs
-- `idea.md` — Captures Problem, Audience, Platform, Core Flow, MVP Features; Non‑Goals optional. Produced in the **intake** stage.  
-- `idea_one_pager.md` — One‑pager derived from `idea.md`; presence checks for Problem, Audience, Platform, Core Flow, MVP Features. Produced in **one_pager**.  
+- `idea_one_pager.md` — Captures Problem, Audience, Platform, Core Flow, MVP Features; Non‑Goals optional. Produced in the **intake** stage.  
 - `spec.md` — Minimal functional and technical specification consistent with prior docs, including a concise **Definition of Done**. Produced in **spec**.  
 - `prompt_plan.md` — Agent‑Ready Planner with per‑step prompts, expected artifacts, tests, rollback notes, idempotency notes, and a TODO checklist using Markdown checkboxes. This file drives the agent workflow.  
 - `AGENTS.md` — This file. Must include the **Agent responsibility** section below for the **agents** stage validator to pass.  
@@ -37,7 +36,7 @@ Strip macOS metadata directories (`__MACOSX/`) and `._*` resource-fork files fro
 
 #### When the prompt plan is fully satisfied
 - Once every Definition of Done task in `prompt_plan.md` is either checked off or explicitly marked `(Deferred)`, the plan is considered **complete**.  
-- After that point, you no longer need to update prompt-plan TODOs or reference `prompt_plan.md`, `spec.md`, `idea.md`, or other upstream docs to justify changes.  
+- After that point, you no longer need to update prompt-plan TODOs or reference `prompt_plan.md`, `spec.md`, `idea_one_pager.md`, or other upstream docs to justify changes.  
 - All other guardrails, testing requirements, and agent responsibilities in this file continue to apply unchanged.
 
 ### Deferred-work notation

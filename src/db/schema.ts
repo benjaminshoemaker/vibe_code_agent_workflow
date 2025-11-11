@@ -9,18 +9,10 @@ import {
   blob
 } from "drizzle-orm/sqlite-core";
 
-export const stageNames = [
-  "intake",
-  "one_pager",
-  "spec",
-  "design",
-  "prompt_plan",
-  "agents",
-  "export"
-] as const;
+export const stageNames = ["intake", "spec", "design", "prompt_plan", "agents", "export"] as const;
 export type StageName = (typeof stageNames)[number];
 
-export const docNames = ["idea.md", "idea_one_pager.md", "spec.md", "prompt_plan.md", "AGENTS.md"] as const;
+export const docNames = ["idea_one_pager.md", "spec.md", "prompt_plan.md", "AGENTS.md"] as const;
 export type DocName = (typeof docNames)[number];
 
 export const chatRoles = ["user", "assistant", "orchestrator"] as const;
@@ -36,7 +28,6 @@ export const sessions = sqliteTable(
     sessionId: text("session_id").primaryKey(),
     currentStage: text("current_stage", stageEnum).notNull(),
     approvedIntake: integer("approved_intake", { mode: "boolean" }).default(false).notNull(),
-    approvedOnePager: integer("approved_one_pager", { mode: "boolean" }).default(false).notNull(),
     approvedSpec: integer("approved_spec", { mode: "boolean" }).default(false).notNull(),
     approvedDesign: integer("approved_design", { mode: "boolean" }).default(false).notNull(),
     approvedPromptPlan: integer("approved_prompt_plan", { mode: "boolean" }).default(false).notNull(),
